@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ACCOUNTANT
+  VIEWER
+}
+
+enum MatchStatus {
+  EXACT_MATCH
+  TAX_DIFFERENCE
+  DATE_DIFFERENCE
+  BOOKS_ONLY
+  STATEMENT_ONLY
+  DUPLICATE
+  ITC_INELIGIBLE
+  RCM
+  AMENDMENT
+  MANUAL_REVIEW
+  MANUAL_MATCHED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model User {
+  id            String               @id @default(cuid())
+  email         String               @unique
+  passwordHash  String
+  name          String
+  mobile        String?
+  role          Role                 @default(ACCOUNTANT)
+  isVerified    Boolean              @default(true)
+  activeOrgId   String?
+  memberships   OrganizationMember[]
+  runs          ReconciliationRun[]
+  imports       ImportBatch[]
+  manualMatches ManualMatch[]
+  activityLogs  ActivityLog[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([email])
+}
+
+model Organization {
+  id              String               @id @default(cuid())
+  name            String
+  gstin           String?
+  pan             String?
+  address         String?
+  email           String?
+  phone           String?
+  currentFy       String               @default("2026-27")
+  members         OrganizationMember[]
+  settings        Settings?
+  purchaseBooks   PurchaseBook[]
+  gstr2a          Gstr2A[]
+  gstr2b          Gstr2B[]
+  gstr3b          Gstr3B[]
+  reconciliations ReconciliationRun[]
+  recoItems       ReconciliationItem[]
+  manualMatches   ManualMatch[]
+  imports         ImportBatch[]
+  activityLogs    ActivityLog[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           Role         @default(ACCOUNTANT)
+  joinedAt       DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Settings {
+  id                String       @id @default(cuid())
+  organizationId    String       @unique
+  taxableTolerance  Float        @default(1.0)
+  igstTolerance     Float        @default(1.0)
+  cgstTolerance     Float        @default(1.0)
+  sgstTolerance     Float        @default(1.0)
+  dateToleranceDays Int          @default(0)
+  defaultFy         String       @default("2026-27")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model PurchaseBook {
+  id                      String       @id @default(cuid())
+  organizationId          String
+  gstin                   String
+  supplierName            String
+  invoiceNumber           String
+  normalizedInvoiceNumber String
+  invoiceDate             DateTime
+  fy                      String
+  month                   String
+  taxableValue            Float
+  igst                    Float        @default(0)
+  cgst                    Float        @default(0)
+  sgst                    Float        @default(0)
+  cess                    Float        @default(0)
+  totalTax                Float        @default(0)
+  invoiceValue            Float
+  pos                     String?
+  rcm                     Boolean      @default(false)
+  itcEligible             Boolean      @default(true)
+  itcIneligible           Boolean      @default(false)
+  source                  String       @default("MANUAL_OR_EXCEL")
+  uniqueKey               String
+  importId                String?
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt               DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, gstin])
+  @@index([organizationId, normalizedInvoiceNumber])
+  @@index([organizationId, fy, month])
+  @@index([organizationId, uniqueKey])
+}
+
+model Gstr2A {
+  id                      String       @id @default(cuid())
+  organizationId          String
+  gstin                   String
+  supplierName            String
+  invoiceNumber           String
+  normalizedInvoiceNumber String
+  invoiceDate             DateTime
+  fy                      String
+  month                   String
+  taxableValue            Float
+  igst                    Float        @default(0)
+  cgst                    Float        @default(0)
+  sgst                    Float        @default(0)
+  cess                    Float        @default(0)
+  invoiceValue            Float
+  pos                     String?
+  rcm                     Boolean      @default(false)
+  docType                 String       @default("INV")
+  amendmentStatus         String?
+  source                  String       @default("PORTAL_OR_EXCEL")
+  uniqueKey               String
+  importId                String?
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt               DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, gstin])
+  @@index([organizationId, normalizedInvoiceNumber])
+  @@index([organizationId, fy, month])
+}
+
+model Gstr2B {
+  id                      String       @id @default(cuid())
+  organizationId          String
+  gstin                   String
+  supplierName            String
+  invoiceNumber           String
+  normalizedInvoiceNumber String
+  invoiceDate             DateTime
+  fy                      String
+  month                   String
+  taxableValue            Float
+  igst                    Float        @default(0)
+  cgst                    Float        @default(0)
+  sgst                    Float        @default(0)
+  cess                    Float        @default(0)
+  invoiceValue            Float
+  itcAvailability         String       @default("Y") // Y = Yes, N = No
+  itcEligible             Boolean      @default(true)
+  itcIneligible           Boolean      @default(false)
+  docType                 String       @default("INV")
+  isd                     Boolean      @default(false)
+  rcm                     Boolean      @default(false)
+  amendmentStatus         String?
+  source                  String       @default("PORTAL_OR_EXCEL")
+  uniqueKey               String
+  importId                String?
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt               DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, gstin])
+  @@index([organizationId, normalizedInvoiceNumber])
+  @@index([organizationId, fy, month])
+}
+
+model Gstr3B {
+  id             String       @id @default(cuid())
+  organizationId String
+  fy             String
+  month          String
+  igstClaimed    Float        @default(0)
+  cgstClaimed    Float        @default(0)
+  sgstClaimed    Float        @default(0)
+  cessClaimed    Float        @default(0)
+  totalClaimed   Float        @default(0)
+  itcReversed    Float        @default(0)
+  netItc         Float        @default(0)
+  remarks        String?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, fy, month])
+  @@index([organizationId])
+}
+
+model ReconciliationRun {
+  id                  String               @id @default(cuid())
+  organizationId      String
+  runType             String               @default("BOOKS_VS_2B") // BOOKS_VS_2B, 2A_VS_2B, 2B_VS_3B
+  fy                  String
+  month               String?
+  status              String               @default("COMPLETED")
+  totalRecords        Int                  @default(0)
+  matchedCount        Int                  @default(0)
+  mismatchCount       Int                  @default(0)
+  booksOnlyCount      Int                  @default(0)
+  statementOnlyCount  Int                  @default(0)
+  runByUserId         String?
+  user                User?                @relation(fields: [runByUserId], references: [id], onDelete: SetNull)
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items               ReconciliationItem[]
+  createdAt           DateTime             @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, runType, fy])
+}
+
+model ReconciliationItem {
+  id                String            @id @default(cuid())
+  runId             String
+  organizationId    String
+  matchStatus       MatchStatus
+  booksRecordId     String?
+  statementRecordId String?
+  booksGstin        String?
+  booksSupplier     String?
+  booksInvoiceNo    String?
+  booksDate         DateTime?
+  booksTaxable      Float?
+  booksIgst         Float?
+  booksCgst         Float?
+  booksSgst         Float?
+  booksCess         Float?
+  stmtGstin         String?
+  stmtSupplier      String?
+  stmtInvoiceNo     String?
+  stmtDate          DateTime?
+  stmtTaxable       Float?
+  stmtIgst          Float?
+  stmtCgst          Float?
+  stmtSgst          Float?
+  stmtCess          Float?
+  diffTaxable       Float?            @default(0)
+  diffIgst          Float?            @default(0)
+  diffCgst          Float?            @default(0)
+  diffSgst          Float?            @default(0)
+  diffTotal         Float?            @default(0)
+  priority          Priority          @default(LOW)
+  actionRequired    String?
+  remarks           String?
+  run               ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+
+  @@index([runId])
+  @@index([organizationId])
+  @@index([matchStatus])
+  @@index([priority])
+}
+
+model ManualMatch {
+  id                String       @id @default(cuid())
+  organizationId    String
+  booksRecordId     String
+  statementRecordId String
+  originalStatus    String
+  newStatus         String       @default("MANUAL_MATCHED")
+  reason            String
+  matchedByUserId   String
+  user              User         @relation(fields: [matchedByUserId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model ImportBatch {
+  id               String        @id @default(cuid())
+  organizationId   String
+  fileType         String // PURCHASE_BOOKS, GSTR_2A, GSTR_2B, GSTR_3B
+  fileName         String
+  totalRows        Int           @default(0)
+  validRows        Int           @default(0)
+  errorRows        Int           @default(0)
+  uploadedByUserId String?
+  user             User?         @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  errors           ImportError[]
+  createdAt        DateTime      @default(now())
+
+  @@index([organizationId])
+}
+
+model ImportError {
+  id          String      @id @default(cuid())
+  importId    String
+  rowNumber   Int
+  rawData     String // JSON stringified row
+  errorMessage String
+  errorColumn String?
+  batch       ImportBatch @relation(fields: [importId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+
+  @@index([importId])
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  entity         String
+  details        String?
+  ipAddress      String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
