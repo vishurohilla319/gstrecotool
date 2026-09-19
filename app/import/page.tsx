@@ -22,6 +22,7 @@ import {
   getDefinitionsForType,
   autoMapColumns,
   validateRows,
+  smartExtractSheetData,
   ColumnMappingDefinition,
   ValidationErrorItem,
 } from "@/lib/excel-utils";
@@ -34,6 +35,10 @@ export default function ImportPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [fileType, setFileType] = useState<string>("PURCHASE_BOOKS");
   const [fileName, setFileName] = useState<string>("");
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
+  const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+  const [isAutoBypassed, setIsAutoBypassed] = useState<boolean>(false);
   const [rawRows, setRawRows] = useState<any[]>([]);
   const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
@@ -45,6 +50,17 @@ export default function ImportPage() {
   const [importCompleted, setImportCompleted] = useState(false);
 
   const definitions: ColumnMappingDefinition[] = getDefinitionsForType(fileType);
+
+  // Handle Sheet Change
+  const handleSheetChange = (sheetName: string) => {
+    if (!workbook) return;
+    setSelectedSheet(sheetName);
+    const extracted = smartExtractSheetData(workbook, sheetName, fileType);
+    setDetectedHeaders(extracted.headers);
+    setRawRows(extracted.rows);
+    setColumnMapping(extracted.autoMapping);
+    setIsAutoBypassed(false);
+  };
 
   // Step 2: Handle File Upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,25 +74,38 @@ export default function ImportPage() {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: "binary", cellDates: true });
-        const firstSheetName = wb.SheetNames[0];
-        const ws = wb.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        setWorkbook(wb);
 
-        if (jsonData.length === 0) {
-          alert("Uploaded sheet is empty!");
+        // Smart extraction: automatically picks B2B sheet for 2B/2A and finds true header row
+        const extracted = smartExtractSheetData(wb, "", fileType);
+        setSelectedSheet(extracted.sheetName);
+        setAvailableSheets(extracted.availableSheets);
+        setDetectedHeaders(extracted.headers);
+        setRawRows(extracted.rows);
+        setColumnMapping(extracted.autoMapping);
+
+        if (extracted.rows.length === 0) {
+          alert(`No data found in sheet "${extracted.sheetName || 'uploaded file'}"!`);
           return;
         }
 
-        const headers = Object.keys(jsonData[0] as object);
-        setDetectedHeaders(headers);
-        setRawRows(jsonData);
-
-        // Step 4: Auto map columns
-        const mapping = autoMapColumns(headers, definitions);
-        setColumnMapping(mapping);
-
-        // Advance to Preview / Mapping
-        setCurrentStep(3);
+        // If all required fields are recognized (like official portal 2B/2A or template):
+        // Automatically run validation and jump directly to Step 5 (skip manual mapping!)
+        if (extracted.isFullyMapped) {
+          const { validRows: valid, errors, ignoredCount } = validateRows(
+            extracted.rows,
+            extracted.autoMapping,
+            fileType
+          );
+          setValidRows(valid);
+          setValidationErrors(errors);
+          setIgnoredRowsCount(ignoredCount || 0);
+          setIsAutoBypassed(true);
+          setCurrentStep(5);
+        } else {
+          setIsAutoBypassed(false);
+          setCurrentStep(3);
+        }
       } catch (err: any) {
         alert("Error parsing file: " + err.message);
       }
@@ -303,12 +332,28 @@ export default function ImportPage() {
       {/* STEP 3: Preview */}
       {currentStep === 3 && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Step 3: File Preview & Statistics</h2>
               <p className="text-xs text-slate-500">File: {fileName}</p>
             </div>
             <div className="flex items-center gap-3">
+              {availableSheets.length > 1 && (
+                <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg">
+                  <span className="font-semibold text-slate-600">Sheet:</span>
+                  <select
+                    value={selectedSheet}
+                    onChange={(e) => handleSheetChange(e.target.value)}
+                    className="bg-transparent font-bold text-blue-700 focus:outline-none"
+                  >
+                    {availableSheets.map((s) => (
+                      <option key={s} value={s}>
+                        {s} {s.toUpperCase() === "B2B" ? "(B2B Invoices)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <button
                 onClick={() => setCurrentStep(2)}
                 className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200"
@@ -377,7 +422,7 @@ export default function ImportPage() {
       {/* STEP 4: Column Mapping */}
       {currentStep === 4 && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Step 4: Map Spreadsheet Columns</h2>
               <p className="text-xs text-slate-500">
@@ -385,12 +430,30 @@ export default function ImportPage() {
               </p>
             </div>
 
-            <button
-              onClick={runValidation}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm"
-            >
-              Validate Mapped Data <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              {availableSheets.length > 1 && (
+                <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg">
+                  <span className="font-semibold text-slate-600">Sheet:</span>
+                  <select
+                    value={selectedSheet}
+                    onChange={(e) => handleSheetChange(e.target.value)}
+                    className="bg-transparent font-bold text-blue-700 focus:outline-none"
+                  >
+                    {availableSheets.map((s) => (
+                      <option key={s} value={s}>
+                        {s} {s.toUpperCase() === "B2B" ? "(B2B Invoices)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={runValidation}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm"
+              >
+                Validate Mapped Data <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -488,6 +551,45 @@ export default function ImportPage() {
               </button>
             </div>
           </div>
+
+          {/* Auto-Extraction Banner if active */}
+          {selectedSheet && (
+            <div className="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>Auto-Extracted from Sheet:</span>
+                    <span className="font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded font-bold">
+                      &quot;{selectedSheet}&quot;
+                    </span>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-semibold">
+                      {fileType === "PURCHASE_BOOKS"
+                        ? "Purchase Register Format"
+                        : fileType === "GSTR_2B"
+                        ? "Official 2B Portal Format"
+                        : fileType === "GSTR_2A"
+                        ? "Official 2A Portal Format"
+                        : "GSTR-3B Format"}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    {isAutoBypassed
+                      ? `Columns and invoices were automatically recognized from sheet "${selectedSheet}" without requiring manual mapping.`
+                      : `Headers and invoices loaded from sheet "${selectedSheet}".`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCurrentStep(4)}
+                className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shrink-0"
+              >
+                Review / Edit Column Mapping
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-4">
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">

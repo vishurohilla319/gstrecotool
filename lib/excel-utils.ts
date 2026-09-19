@@ -9,53 +9,54 @@ export interface ColumnMappingDefinition {
 }
 
 export const PURCHASE_BOOK_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "vendor name", "supplier"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "bill no", "doc no", "document number"] },
-  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "bill date", "date", "document date"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable amt", "taxable"] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "igst amount"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "cgst amount"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state/ut tax", "state tax", "state tax (₹)", "sgst amount"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess amount"] },
-  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "invoice amount", "total value", "total amount", "net amount"] },
-  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier", "gstin/uin", "gstin / uin", "party gstin/uin", "gst no", "gst no.", "gst number", "gstin no", "gstin_uin", "gst", "party's gstin/uin"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "vendor name", "supplier", "particulars", "party", "ledger name", "account name", "name of supplier", "name of party", "name of the supplier", "trade/legal name", "party's name"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "invoice no.", "inv no", "inv no.", "bill no", "bill no.", "bill number", "doc no", "doc no.", "document number", "vch no", "vch no.", "voucher no", "voucher no.", "ref no", "ref no.", "supplier invoice no", "reference no", "invoice number/document number"] },
+  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "bill date", "date", "document date", "vch date", "voucher date", "inv. date", "invoice dt", "doc date", "voucher dt"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable amt", "taxable", "assessable value", "assessable amt", "taxable value (₹)", "taxable value(₹)", "basic amount", "basic value", "taxable val", "taxable amt."] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "igst amount", "igst amt", "igst (₹)", "i.g.s.t", "integrated tax amt"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "cgst amount", "cgst amt", "cgst (₹)", "c.g.s.t", "central tax amt"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state/ut tax", "state tax", "state tax (₹)", "state/ut tax (₹)", "state/ut tax(₹)", "sgst amount", "sgst amt", "sgst (₹)", "s.g.s.t", "utgst", "state tax amt"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount", "cess amt"] },
+  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "invoice amount", "total value", "total amount", "net amount", "gross total", "bill amount", "total", "grand total", "inv value", "invoice value (₹)", "total amt"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply", "state"] },
   { field: "rcm", label: "RCM (Y/N)", required: false, aliases: ["rcm", "reverse charge", "reverse charge (y/n)"] },
   { field: "itcEligible", label: "ITC Eligible (Y/N)", required: false, aliases: ["itc eligible", "itc eligibility", "itc available", "itc (y/n)"] },
 ];
 
 export const GSTR_2A_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "legal name", "trade name", "party name"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number"] },
-  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable"] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess"] },
-  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value"] },
-  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos"] },
-  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm"] },
-  { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "legal name", "trade name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number"] },
+  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date", "invoice date(dd/mm/yyyy)", "invoice date (dd-mm-yyyy)", "invoice dt"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val"] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount"] },
+  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value", "invoice value (₹)", "invoice value(₹)", "invoice amount", "total amount"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state"] },
+  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm", "supply attract reverse charge", "supply attracts reverse charge"] },
+  { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type", "invoice type"] },
   { field: "amendmentStatus", label: "Amendment Status", required: false, aliases: ["amendment status", "amended", "amendment"] },
 ];
 
 export const GSTR_2B_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number"] },
-  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable"] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess"] },
-  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value"] },
-  { field: "itcAvailability", label: "ITC Availability (Y/N)", required: false, aliases: ["itc availability", "itc available", "itc availability (y/n)"] },
-  { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type"] },
-  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm"] },
-  { field: "amendmentStatus", label: "Amendment Status", required: false, aliases: ["amendment status", "amended"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number"] },
+  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date", "invoice date(dd/mm/yyyy)", "invoice date (dd-mm-yyyy)", "invoice dt"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val"] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount"] },
+  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value", "invoice value (₹)", "invoice value(₹)", "invoice amount", "total amount"] },
+  { field: "itcAvailability", label: "ITC Availability (Y/N)", required: false, aliases: ["itc availability", "itc available", "itc availability (y/n)", "itc eligibility", "itc available (y/n)"] },
+  { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type", "invoice type"] },
+  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm", "supply attract reverse charge", "supply attracts reverse charge", "reverse charge (y/n)"] },
+  { field: "amendmentStatus", label: "Amendment Status", required: false, aliases: ["amendment status", "amended", "amendment"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply"] },
 ];
 
 export const GSTR_3B_COLUMNS: ColumnMappingDefinition[] = [
@@ -84,7 +85,7 @@ export function getDefinitionsForType(fileType: string): ColumnMappingDefinition
 }
 
 /**
- * Auto-detect mapping between detected file headers and required definitions
+ * Intelligent auto-mapping with alphanumeric normalization
  */
 export function autoMapColumns(
   detectedHeaders: string[],
@@ -95,7 +96,25 @@ export function autoMapColumns(
   for (const def of definitions) {
     for (const header of detectedHeaders) {
       const cleanHeader = header.trim().toLowerCase();
-      if (cleanHeader === def.field.toLowerCase() || cleanHeader === def.label.toLowerCase() || def.aliases.includes(cleanHeader)) {
+      const normHeader = cleanHeader.replace(/[^a-z0-9]/g, "");
+
+      const candidates = [
+        def.field.toLowerCase(),
+        def.label.toLowerCase(),
+        ...def.aliases.map((a) => a.toLowerCase()),
+      ];
+
+      const match = candidates.some((cand) => {
+        const normCand = cand.replace(/[^a-z0-9]/g, "");
+        return (
+          cleanHeader === cand ||
+          normHeader === normCand ||
+          (normCand.length >= 4 && normHeader.includes(normCand)) ||
+          (normHeader.length >= 4 && normCand.includes(normHeader))
+        );
+      });
+
+      if (match) {
         mapping[def.field] = header;
         break;
       }
@@ -104,6 +123,175 @@ export function autoMapColumns(
 
   return mapping;
 }
+
+export interface ExtractedSheetData {
+  sheetName: string;
+  availableSheets: string[];
+  headers: string[];
+  rows: Record<string, any>[];
+  autoMapping: Record<string, string>;
+  isFullyMapped: boolean;
+  detectedHeaderRow: number;
+}
+
+/**
+ * Detect the best sheet name (e.g. "B2B" for official GSTR-2B or GSTR-2A)
+ */
+export function findBestSheetName(sheetNames: string[], fileType: string): string {
+  if (!sheetNames || sheetNames.length === 0) return "";
+
+  if (fileType === "GSTR_2B" || fileType === "GSTR_2A") {
+    // 1. Exact match for "B2B"
+    const exactB2b = sheetNames.find((s) => s.trim().toUpperCase() === "B2B");
+    if (exactB2b) return exactB2b;
+
+    // 2. Starts with B2B or contains B2B
+    const b2bMatch = sheetNames.find((s) => /\bB2B\b/i.test(s) || /^B2B/i.test(s.trim()));
+    if (b2bMatch) return b2bMatch;
+
+    // 3. Match 2B or 2A
+    const recoMatch = sheetNames.find((s) => /2B/i.test(s) || /2A/i.test(s));
+    if (recoMatch) return recoMatch;
+  }
+
+  if (fileType === "PURCHASE_BOOKS") {
+    const pMatch = sheetNames.find((s) =>
+      /purchase|register|books|tally|busy|data|invoices/i.test(s)
+    );
+    if (pMatch) return pMatch;
+  }
+
+  if (fileType === "GSTR_3B") {
+    const match3b = sheetNames.find((s) =>
+      /3B|GSTR-?3B|table\s*4|itc/i.test(s)
+    );
+    if (match3b) return match3b;
+  }
+
+  return sheetNames[0];
+}
+
+/**
+ * Smart Sheet Data Extraction:
+ * Automatically selects the target sheet (e.g. "B2B"),
+ * detects the actual header row (skipping government banners/metadata),
+ * parses records, and computes 100% confidence auto-mapping.
+ */
+export function smartExtractSheetData(
+  wb: XLSX.WorkBook,
+  targetSheetName: string,
+  fileType: string
+): ExtractedSheetData {
+  const availableSheets = wb.SheetNames || [];
+  const sheetName = targetSheetName || findBestSheetName(availableSheets, fileType);
+  const ws = wb.Sheets[sheetName] || wb.Sheets[availableSheets[0]];
+
+  if (!ws) {
+    return {
+      sheetName: "",
+      availableSheets,
+      headers: [],
+      rows: [],
+      autoMapping: {},
+      isFullyMapped: false,
+      detectedHeaderRow: 0,
+    };
+  }
+
+  // Convert raw sheet to 2D array of rows
+  const rawMatrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+  if (rawMatrix.length === 0) {
+    return {
+      sheetName,
+      availableSheets,
+      headers: [],
+      rows: [],
+      autoMapping: {},
+      isFullyMapped: false,
+      detectedHeaderRow: 0,
+    };
+  }
+
+  const definitions = getDefinitionsForType(fileType);
+
+  // Scan first 25 rows to detect the true table header row
+  let bestHeaderRowIndex = 0;
+  let maxScore = -1;
+
+  for (let r = 0; r < Math.min(25, rawMatrix.length); r++) {
+    const row = rawMatrix[r];
+    if (!Array.isArray(row)) continue;
+
+    let score = 0;
+    const cleanCells = row.map((c) => String(c ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+    for (const def of definitions) {
+      const allAliases = [
+        def.field.toLowerCase(),
+        def.label.toLowerCase(),
+        ...def.aliases.map((a) => a.toLowerCase()),
+      ].map((a) => a.replace(/[^a-z0-9]/g, ""));
+
+      if (cleanCells.some((cell) => cell && allAliases.some((alias) => cell === alias || (alias.length >= 5 && cell.includes(alias))))) {
+        score++;
+      }
+    }
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestHeaderRowIndex = r;
+    }
+  }
+
+  // Extract detected headers
+  const headerRow = rawMatrix[bestHeaderRowIndex] || [];
+  const headers: string[] = [];
+  headerRow.forEach((col: any, idx: number) => {
+    const colName = String(col ?? "").trim();
+    if (colName) {
+      headers.push(colName);
+    } else {
+      headers.push(`Column_${idx + 1}`);
+    }
+  });
+
+  // Map remaining rows to JSON objects using detected headers
+  const rows: Record<string, any>[] = [];
+  for (let r = bestHeaderRowIndex + 1; r < rawMatrix.length; r++) {
+    const rowArr = rawMatrix[r];
+    if (!rowArr || !Array.isArray(rowArr)) continue;
+
+    // Check if entire row is empty
+    const hasValues = rowArr.some((c) => String(c ?? "").trim() !== "");
+    if (!hasValues) continue;
+
+    const rowObj: Record<string, any> = {};
+    headers.forEach((h, colIdx) => {
+      rowObj[h] = rowArr[colIdx] !== undefined ? rowArr[colIdx] : "";
+    });
+    rows.push(rowObj);
+  }
+
+  // Auto map columns
+  const autoMapping = autoMapColumns(headers, definitions);
+
+  // Check if all required fields are mapped
+  const requiredDefs = definitions.filter((d) => d.required);
+  const isFullyMapped =
+    requiredDefs.length > 0 &&
+    requiredDefs.every((d) => Boolean(autoMapping[d.field]));
+
+  return {
+    sheetName,
+    availableSheets,
+    headers,
+    rows,
+    autoMapping,
+    isFullyMapped,
+    detectedHeaderRow: bestHeaderRowIndex + 1,
+  };
+}
+
 
 export interface ValidationErrorItem {
   rowNumber: number;
@@ -297,7 +485,7 @@ export function validateRows(
     }
   });
 
-  return { validRows, errors };
+  return { validRows, errors, ignoredCount };
 }
 
 /**
