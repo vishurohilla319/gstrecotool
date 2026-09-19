@@ -21,6 +21,7 @@ import {
   Database,
   Sparkles,
 } from "lucide-react";
+import { getMonthsForFinancialYear } from "@/lib/gst-utils";
 
 export function Sidebar({ user }: { user: any }) {
   const pathname = usePathname();
@@ -302,6 +303,10 @@ export function Sidebar({ user }: { user: any }) {
 export function Navbar({ user, org }: { user: any; org?: any }) {
   const router = useRouter();
   const [loadingSeed, setLoadingSeed] = useState(false);
+  const [selectedFy, setSelectedFy] = useState(org?.currentFy || "2026-27");
+  const [selectedPeriod, setSelectedPeriod] = useState("All");
+
+  const months = getMonthsForFinancialYear(selectedFy);
 
   const handleSeedDemo = async () => {
     if (!confirm("Load Indian GST sample dataset (Purchase Books, 2A, 2B, 3B) for instant reconciliation testing?")) {
@@ -337,7 +342,11 @@ export function Navbar({ user, org }: { user: any; org?: any }) {
         <div className="flex items-center gap-2 text-xs">
           <span className="text-slate-500 font-medium">FY:</span>
           <select
-            defaultValue="2026-27"
+            value={selectedFy}
+            onChange={(e) => {
+              setSelectedFy(e.target.value);
+              setSelectedPeriod("All");
+            }}
             className="bg-slate-50 border border-slate-300 rounded px-2 py-1 text-slate-700 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="2026-27">2026-27</option>
@@ -349,13 +358,16 @@ export function Navbar({ user, org }: { user: any; org?: any }) {
         <div className="flex items-center gap-2 text-xs">
           <span className="text-slate-500 font-medium">Period:</span>
           <select
-            defaultValue="All"
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded px-2 py-1 text-slate-700 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="All">All Months (Apr - Mar)</option>
-            <option value="April 2026">April 2026</option>
-            <option value="May 2026">May 2026</option>
-            <option value="June 2026">June 2026</option>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
           </select>
         </div>
       </div>

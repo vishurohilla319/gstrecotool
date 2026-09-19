@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { formatCurrency, formatDate } from "@/lib/gst-utils";
+import { formatCurrency, formatDate, getMonthsForFinancialYear } from "@/lib/gst-utils";
 import { Search, Filter, ArrowUpDown, ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
@@ -11,9 +11,10 @@ export function PurchaseBooksTableClient({ initialRecords }: { initialRecords: a
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
-  // Distinct months
+  // All 12 FY months plus any custom months present in initialRecords
   const months = useMemo(() => {
-    const set = new Set<string>();
+    const fyMonths = getMonthsForFinancialYear("2026-27");
+    const set = new Set<string>(fyMonths);
     initialRecords.forEach((r) => r.month && set.add(r.month));
     return Array.from(set);
   }, [initialRecords]);

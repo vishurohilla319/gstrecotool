@@ -146,3 +146,41 @@ export function getStateNameFromGstin(gstin?: string | null): string {
   const code = gstin.substring(0, 2);
   return STATE_CODES[code] || "Other State";
 }
+
+export const FINANCIAL_YEAR_MONTH_NAMES = [
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+  "January",
+  "February",
+  "March",
+];
+
+/**
+ * Returns all 12 financial year months (April - March) with respective years.
+ * e.g., for "2026-27": April 2026 ... March 2027
+ */
+export function getMonthsForFinancialYear(fy: string = "2026-27"): string[] {
+  const startYear = parseInt(fy.split("-")[0], 10) || 2026;
+  const endYear = startYear + 1;
+  return [
+    `April ${startYear}`,
+    `May ${startYear}`,
+    `June ${startYear}`,
+    `July ${startYear}`,
+    `August ${startYear}`,
+    `September ${startYear}`,
+    `October ${startYear}`,
+    `November ${startYear}`,
+    `December ${startYear}`,
+    `January ${endYear}`,
+    `February ${endYear}`,
+    `March ${endYear}`,
+  ];
+}

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatCurrency } from "@/lib/gst-utils";
+import { formatCurrency, getMonthsForFinancialYear } from "@/lib/gst-utils";
 import {
   ArrowUpRight,
   TrendingUp,
@@ -86,8 +86,8 @@ export default async function DashboardPage() {
   const unclaimedItc = Math.max(0, gstr2bItcTotal - gstr3bTotalClaimed);
   const potentialExcessItc = Math.max(0, gstr3bTotalClaimed - gstr2bItcTotal);
 
-  // Monthly breakdown for chart
-  const monthsList = ["April 2026", "May 2026", "June 2026"];
+  // Monthly breakdown for chart (all 12 months of FY)
+  const monthsList = getMonthsForFinancialYear("2026-27");
   const monthlyChartData = monthsList.map((m) => {
     const bMonthItc = books
       .filter((b) => b.month === m)

@@ -5,6 +5,8 @@ import * as XLSX from "xlsx";
 import { logActivity } from "@/lib/audit";
 import { formatDate } from "@/lib/gst-utils";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
