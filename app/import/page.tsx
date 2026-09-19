@@ -82,6 +82,54 @@ export default function ImportPage() {
     if (!file) return;
 
     setFileName(file.name);
+
+    // If PDF is uploaded (Official GST Portal Form GSTR-3B)
+    if (file.name.toLowerCase().endsWith(".pdf")) {
+      if (fileType !== "GSTR_3B") {
+        alert("PDF upload is supported for official GST Portal Form GSTR-3B. For Purchase Books and 2B, please upload Excel / CSV.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      fetch("/api/import/parse-3b-pdf", {
+        method: "POST",
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then((resData) => {
+          if (!resData.success) {
+            alert("Error parsing GSTR-3B PDF: " + (resData.error || "Unknown error"));
+            return;
+          }
+          const p = resData.data;
+          const parsedRow = {
+            fy: p.fy || "2026-27",
+            month: p.month || "May",
+            igstClaimed: p.igstClaimed || 0,
+            cgstClaimed: p.cgstClaimed || 0,
+            sgstClaimed: p.sgstClaimed || 0,
+            cessClaimed: p.cessClaimed || 0,
+            totalClaimed: p.totalClaimed || 0,
+            itcReversed: p.itcReversed || 0,
+            netItc: p.netItc || 0,
+            remarks: `Official Portal PDF (${p.gstin || "GSTR-3B"})`,
+          };
+
+          setRawRows([parsedRow]);
+          setValidRows([parsedRow]);
+          setValidationErrors([]);
+          setIgnoredRowsCount(0);
+          setIsAutoBypassed(true);
+          setCurrentStep(5);
+        })
+        .catch((err) => {
+          alert("Failed to parse PDF: " + err.message);
+        });
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = (evt) => {
@@ -323,17 +371,21 @@ export default function ImportPage() {
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              accept=".xlsx, .xls, .csv"
+              accept={fileType === "GSTR_3B" ? ".pdf, .xlsx, .xls, .csv" : ".xlsx, .xls, .csv"}
               className="hidden"
             />
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
               <UploadCloud className="w-8 h-8" />
             </div>
             <h3 className="text-sm font-bold text-slate-800">
-              Click to browse or drag and drop spreadsheet
+              {fileType === "GSTR_3B"
+                ? "Upload Official GST Portal Form GSTR-3B (PDF) or Excel"
+                : "Click to browse or drag and drop spreadsheet"}
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Supports Microsoft Excel (.xlsx, .xls) and Comma-Separated Values (.csv)
+              {fileType === "GSTR_3B"
+                ? "Directly upload the official PDF downloaded from GST Portal (auto-extracts Table 4 ITC & Reversals), or Excel (.xlsx, .csv)"
+                : "Supports Microsoft Excel (.xlsx, .xls) and Comma-Separated Values (.csv)"}
             </p>
             <div className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />

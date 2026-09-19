@@ -16,6 +16,12 @@ export default async function TwoBvsThreeBPage() {
 
   const results = reconcile2Bvs3B(gstr2b, gstr3b);
 
+  const total2B = results.reduce((acc, r) => acc + (r.bTotalItc || 0), 0);
+  const total3BGross = results.reduce((acc, r) => acc + (r.totalClaimed || 0), 0);
+  const total3BReversed = results.reduce((acc, r) => acc + (r.itcReversed || 0), 0);
+  const total3BNet = results.reduce((acc, r) => acc + (r.netItc || 0), 0);
+  const totalDiff = Math.round((total3BNet - total2B) * 100) / 100;
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -29,7 +35,7 @@ export default async function TwoBvsThreeBPage() {
             GSTR-2B vs GSTR-3B Reconciliation
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Compare eligible ITC auto-populated in 2B with actual Input Tax Credit claimed in Form 3B returns
+            Compare eligible ITC auto-populated in 2B with actual Input Tax Credit claimed & reversed in Form 3B returns
           </p>
         </div>
 
@@ -41,6 +47,47 @@ export default async function TwoBvsThreeBPage() {
         </a>
       </div>
 
+      {/* Reconciled Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">1. GSTR-2B Eligible ITC</span>
+          <div className="text-lg font-bold text-emerald-800 mt-1">{formatCurrency(total2B)}</div>
+          <div className="text-[10px] text-slate-500">Auto-drafted by suppliers</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">2. 3B Gross Claimed</span>
+          <div className="text-lg font-bold text-blue-800 mt-1">{formatCurrency(total3BGross)}</div>
+          <div className="text-[10px] text-slate-500">Table 4(A) ITC Available</div>
+        </div>
+        <div className="bg-purple-50/70 p-4 rounded-xl border border-purple-200 shadow-xs">
+          <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">3. (-) 3B ITC Reversed</span>
+          <div className="text-lg font-bold text-purple-800 mt-1">{formatCurrency(total3BReversed)}</div>
+          <div className="text-[10px] text-purple-600">Table 4(B) Reversals</div>
+        </div>
+        <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200 shadow-xs">
+          <span className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">4. (=) Net 3B Claimed</span>
+          <div className="text-lg font-bold text-blue-900 mt-1">{formatCurrency(total3BNet)}</div>
+          <div className="text-[10px] text-blue-600">Table 4(C) Net ITC</div>
+        </div>
+        <div className={`p-4 rounded-xl border shadow-xs ${
+          Math.abs(totalDiff) <= 1
+            ? "bg-emerald-50/80 border-emerald-300 text-emerald-900"
+            : totalDiff > 1
+            ? "bg-red-50/80 border-red-300 text-red-900"
+            : "bg-amber-50/80 border-amber-300 text-amber-900"
+        }`}>
+          <span className="text-[11px] font-semibold uppercase tracking-wider">
+            {Math.abs(totalDiff) <= 1 ? "Reconciled Status" : "Net ITC Variance"}
+          </span>
+          <div className="text-lg font-bold mt-1">
+            {Math.abs(totalDiff) <= 1 ? "Fully Matched (₹0)" : formatCurrency(totalDiff)}
+          </div>
+          <div className="text-[10px] opacity-80">
+            {Math.abs(totalDiff) <= 1 ? "Net 3B matches 2B" : totalDiff > 1 ? "Excess Claimed in 3B" : "Unclaimed 2B Credit"}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -50,10 +97,10 @@ export default async function TwoBvsThreeBPage() {
                 <th colSpan={4} className="bg-emerald-50/80 px-4 py-2 text-center text-emerald-900">
                   GSTR-2B Eligible Available ITC (Portal)
                 </th>
-                <th colSpan={4} className="bg-blue-50/80 px-4 py-2 text-center text-blue-900">
-                  GSTR-3B Credit Claimed (Returns)
+                <th colSpan={6} className="bg-blue-50/80 px-4 py-2 text-center text-blue-900">
+                  GSTR-3B Input Tax Credit (Table 4)
                 </th>
-                <th rowSpan={2} className="px-4 py-3 text-right">Difference (3B - 2B)</th>
+                <th rowSpan={2} className="px-4 py-3 text-right">Net Diff (3B - 2B)</th>
                 <th rowSpan={2} className="px-4 py-3">Audit Finding / Exposure</th>
               </tr>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
@@ -65,13 +112,15 @@ export default async function TwoBvsThreeBPage() {
                 <th className="px-3 py-1.5 text-right">IGST</th>
                 <th className="px-3 py-1.5 text-right">CGST</th>
                 <th className="px-3 py-1.5 text-right">SGST</th>
-                <th className="px-3 py-1.5 text-right font-bold text-blue-800">Net 3B Claimed</th>
+                <th className="px-3 py-1.5 text-right font-medium text-slate-700">Gross 4(A)</th>
+                <th className="px-3 py-1.5 text-right font-semibold text-purple-700 bg-purple-50/50">(-) Rev 4(B)</th>
+                <th className="px-3 py-1.5 text-right font-bold text-blue-800 bg-blue-50/50">Net 4(C)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {results.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={13} className="px-4 py-8 text-center text-slate-400">
                     No 2B or 3B data available.
                   </td>
                 </tr>
@@ -92,7 +141,11 @@ export default async function TwoBvsThreeBPage() {
                     <td className="px-3 py-3 text-right text-slate-700">{formatCurrency(r.claimedIgst)}</td>
                     <td className="px-3 py-3 text-right text-slate-700">{formatCurrency(r.claimedCgst)}</td>
                     <td className="px-3 py-3 text-right text-slate-700">{formatCurrency(r.claimedSgst)}</td>
-                    <td className="px-3 py-3 text-right font-bold text-blue-700">
+                    <td className="px-3 py-3 text-right text-slate-700">{formatCurrency(r.totalClaimed)}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-purple-700 bg-purple-50/30">
+                      {formatCurrency(r.itcReversed)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-bold text-blue-700 bg-blue-50/30">
                       {formatCurrency(r.netItc)}
                     </td>
 

@@ -116,6 +116,8 @@ export function reconcileBooksVs2B(
     mismatchCount: number;
     booksOnlyCount: number;
     statementOnlyCount: number;
+    itcReversedCount?: number;
+    itcReversedAmount?: number;
   };
 } {
   const items: ReconciledItemResult[] = [];
@@ -189,8 +191,9 @@ export function reconcileBooksVs2B(
       const stmtDate = new Date(s.invoiceDate);
       const dateDiffDays = daysBetween(booksDate, stmtDate);
 
-      // Check special conditions first
-      if (s.itcEligible === false || s.itcAvailability === "N") {
+      // Check special conditions first (ITC Ineligible / Reversed in 2B or in Books)
+      if (s.itcEligible === false || s.itcAvailability === "N" || b.itcEligible === false || b.itcIneligible === true) {
+        const isReversedInBooks = b.itcEligible === false || b.itcIneligible === true;
         items.push({
           matchStatus: "ITC_INELIGIBLE",
           booksRecordId: b.id,
@@ -218,9 +221,13 @@ export function reconcileBooksVs2B(
           diffCgst,
           diffSgst,
           diffTotal: diffTotalTax,
-          priority: "CRITICAL",
-          actionRequired: "Reverse ITC or verify Section 17(5) blockage",
-          remarks: "Invoice present in 2B but marked as Ineligible ITC",
+          priority: "LOW",
+          actionRequired: isReversedInBooks
+            ? "ITC Reversed in Books / Form 3B"
+            : "Reverse ITC or verify Section 17(5) blockage",
+          remarks: isReversedInBooks
+            ? "ITC marked as Reversed in Purchase Books"
+            : "Invoice present in 2B but marked as Ineligible ITC",
         });
       } else if (s.rcm || b.rcm) {
         items.push({
@@ -433,8 +440,9 @@ export function reconcileBooksVs2B(
   // Phase 3: Remaining Books Only
   for (const b of books) {
     if (!matchedBookIds.has(b.id)) {
+      const isReversedInBooks = b.itcEligible === false || b.itcIneligible === true;
       items.push({
-        matchStatus: "BOOKS_ONLY",
+        matchStatus: isReversedInBooks ? "ITC_INELIGIBLE" : "BOOKS_ONLY",
         booksRecordId: b.id,
         booksGstin: b.gstin,
         booksSupplier: b.supplierName,
@@ -450,9 +458,13 @@ export function reconcileBooksVs2B(
         diffCgst: b.cgst,
         diffSgst: b.sgst,
         diffTotal: (b.igst || 0) + (b.cgst || 0) + (b.sgst || 0),
-        priority: "CRITICAL",
-        actionRequired: "Follow up with supplier to file GSTR-1 for ITC eligibility",
-        remarks: "Invoice recorded in Purchase Books but not reflected in GSTR-2B",
+        priority: isReversedInBooks ? "LOW" : "CRITICAL",
+        actionRequired: isReversedInBooks
+          ? "ITC Reversed in Books / 3B"
+          : "Follow up with supplier to file GSTR-1 for ITC eligibility",
+        remarks: isReversedInBooks
+          ? "ITC marked as Reversed in Purchase Books"
+          : "Invoice recorded in Purchase Books but not reflected in GSTR-2B",
       });
     }
   }
@@ -487,7 +499,11 @@ export function reconcileBooksVs2B(
   const matchedCount = items.filter((i) => i.matchStatus === "EXACT_MATCH").length;
   const booksOnlyCount = items.filter((i) => i.matchStatus === "BOOKS_ONLY").length;
   const statementOnlyCount = items.filter((i) => i.matchStatus === "STATEMENT_ONLY").length;
-  const mismatchCount = items.length - matchedCount - booksOnlyCount - statementOnlyCount;
+  const itcReversedCount = items.filter((i) => i.matchStatus === "ITC_INELIGIBLE").length;
+  const itcReversedAmount = items
+    .filter((i) => i.matchStatus === "ITC_INELIGIBLE")
+    .reduce((acc, i) => acc + (i.booksIgst || 0) + (i.booksCgst || 0) + (i.booksSgst || 0), 0);
+  const mismatchCount = items.length - matchedCount - booksOnlyCount - statementOnlyCount - itcReversedCount;
 
   return {
     items,
@@ -497,6 +513,8 @@ export function reconcileBooksVs2B(
       mismatchCount,
       booksOnlyCount,
       statementOnlyCount,
+      itcReversedCount,
+      itcReversedAmount: Math.round(itcReversedAmount * 100) / 100,
     },
   };
 }

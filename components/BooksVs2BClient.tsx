@@ -35,6 +35,112 @@ export function BooksVs2BClient({
   const [matchReason, setMatchReason] = useState("");
   const [matchingLoading, setMatchingLoading] = useState(false);
 
+  // ITC Reversal Modal State
+  const [reverseModalItem, setReverseModalItem] = useState<any | null>(null);
+  const [reversalReason, setReversalReason] = useState("Section 17(5) Blocked Credit");
+  const [reversalAmount, setReversalAmount] = useState("");
+  const [reversalRemarks, setReversalRemarks] = useState("");
+  const [reversalLoading, setReversalLoading] = useState(false);
+
+  const openReverseModal = (item: any) => {
+    setReverseModalItem(item);
+    const taxAmt =
+      (item.booksTaxable !== null && item.booksTaxable !== undefined
+        ? (item.booksIgst || 0) + (item.booksCgst || 0) + (item.booksSgst || 0)
+        : (item.stmtIgst || 0) + (item.stmtCgst || 0) + (item.stmtSgst || 0)) || 0;
+    setReversalAmount(taxAmt > 0 ? String(taxAmt.toFixed(2)) : "0.00");
+    setReversalReason("Section 17(5) Blocked Credit");
+    setReversalRemarks("");
+  };
+
+  const handleReverseItcSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reverseModalItem) return;
+
+    setReversalLoading(true);
+    try {
+      const res = await fetch("/api/reconciliation/reverse-itc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: reverseModalItem.id,
+          booksRecordId: reverseModalItem.booksRecordId,
+          statementRecordId: reverseModalItem.statementRecordId,
+          action: "REVERSE",
+          reversalReason,
+          reversalAmount: Number(reversalAmount) || 0,
+          remarks: reversalRemarks,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reverse ITC");
+
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === reverseModalItem.id
+            ? {
+                ...i,
+                matchStatus: "ITC_INELIGIBLE",
+                priority: "LOW",
+                actionRequired: `Reversed in Books / 3B (${reversalReason})`,
+                remarks: `ITC Reversed: ${reversalReason} (₹${reversalAmount})${
+                  reversalRemarks ? ` - ${reversalRemarks}` : ""
+                }`,
+              }
+            : i
+        )
+      );
+
+      setReverseModalItem(null);
+      setReversalRemarks("");
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setReversalLoading(false);
+    }
+  };
+
+  const handleRestoreItc = async (item: any) => {
+    if (!confirm(`Restore ITC for Invoice ${item.booksInvoiceNo || item.stmtInvoiceNo}?`)) return;
+
+    try {
+      const res = await fetch("/api/reconciliation/reverse-itc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          booksRecordId: item.booksRecordId,
+          statementRecordId: item.statementRecordId,
+          action: "RESTORE",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to restore ITC");
+
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? {
+                ...i,
+                matchStatus:
+                  i.booksRecordId && i.statementRecordId
+                    ? "EXACT_MATCH"
+                    : i.booksRecordId
+                    ? "BOOKS_ONLY"
+                    : "STATEMENT_ONLY",
+                actionRequired: null,
+                remarks: "ITC Restored as eligible",
+              }
+            : i
+        )
+      );
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
   const handleRunReconciliation = async () => {
     setRunningReco(true);
     try {
@@ -93,8 +199,59 @@ export function BooksVs2BClient({
     }
   };
 
+  // Live ITC calculations for matching with Books
+  const totalBooksTax = items.reduce(
+    (acc, i) =>
+      acc +
+      (i.booksTaxable !== null && i.booksTaxable !== undefined
+        ? (i.booksIgst || 0) + (i.booksCgst || 0) + (i.booksSgst || 0)
+        : 0),
+    0
+  );
+
+  const reversedItems = items.filter(
+    (i) =>
+      i.matchStatus === "ITC_INELIGIBLE" ||
+      (i.remarks && i.remarks.toLowerCase().includes("itc reversed")) ||
+      (i.actionRequired && i.actionRequired.toLowerCase().includes("reversed"))
+  );
+
+  const totalReversedTax = reversedItems.reduce(
+    (acc, i) =>
+      acc +
+      ((i.booksTaxable !== null && i.booksTaxable !== undefined
+        ? (i.booksIgst || 0) + (i.booksCgst || 0) + (i.booksSgst || 0)
+        : (i.stmtIgst || 0) + (i.stmtCgst || 0) + (i.stmtSgst || 0)) || 0),
+    0
+  );
+
+  const netEligibleBooksTax = Math.max(0, totalBooksTax - totalReversedTax);
+
+  const total2bEligibleTax = items.reduce(
+    (acc, i) =>
+      acc +
+      (i.stmtTaxable !== null &&
+      i.stmtTaxable !== undefined &&
+      i.matchStatus !== "ITC_INELIGIBLE" &&
+      (!i.remarks || !i.remarks.toLowerCase().includes("ineligible"))
+        ? (i.stmtIgst || 0) + (i.stmtCgst || 0) + (i.stmtSgst || 0)
+        : 0),
+    0
+  );
+
+  const netItcDifference = Math.round((netEligibleBooksTax - total2bEligibleTax) * 100) / 100;
+  const isItcMatched = Math.abs(netItcDifference) <= (tolerances?.taxableTolerance ?? 1.0);
+
   const filteredItems = items.filter((item) => {
-    const matchesStatus = statusFilter === "ALL" || item.matchStatus === statusFilter;
+    const isItemReversed =
+      item.matchStatus === "ITC_INELIGIBLE" ||
+      (item.remarks && item.remarks.toLowerCase().includes("itc reversed")) ||
+      (item.actionRequired && item.actionRequired.toLowerCase().includes("reversed"));
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ITC_REVERSED" ? isItemReversed : item.matchStatus === statusFilter);
+
     const matchesSearch =
       !search ||
       (item.booksSupplier && item.booksSupplier.toLowerCase().includes(search.toLowerCase())) ||
@@ -107,7 +264,20 @@ export function BooksVs2BClient({
     return matchesStatus && matchesSearch;
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, item?: any) => {
+    const isReversed =
+      status === "ITC_INELIGIBLE" ||
+      (item?.remarks && item.remarks.toLowerCase().includes("itc reversed")) ||
+      (item?.actionRequired && item.actionRequired.toLowerCase().includes("reversed"));
+
+    if (isReversed) {
+      return (
+        <span className="bg-purple-100 text-purple-900 border border-purple-300 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span> ITC Reversed
+        </span>
+      );
+    }
+
     switch (status) {
       case "EXACT_MATCH":
         return <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">Exact Match</span>;
@@ -122,7 +292,7 @@ export function BooksVs2BClient({
       case "DUPLICATE":
         return <span className="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px]">Duplicate</span>;
       case "ITC_INELIGIBLE":
-        return <span className="bg-red-200 text-red-900 font-bold px-2 py-0.5 rounded text-[10px]">ITC Ineligible</span>;
+        return <span className="bg-purple-100 text-purple-800 border border-purple-300 font-bold px-2 py-0.5 rounded text-[10px]">ITC Reversed</span>;
       case "RCM":
         return <span className="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px]">RCM</span>;
       case "MANUAL_REVIEW":
@@ -136,6 +306,82 @@ export function BooksVs2BClient({
 
   return (
     <div className="space-y-6">
+      {/* Live ITC Matching Summary with Books */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-5 rounded-2xl border border-slate-700 shadow-md text-white space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h2 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+              ITC Reconciliation & Reversal Summary (Books vs GSTR-2B)
+            </h2>
+          </div>
+          <div className="text-[11px] font-medium text-slate-300">
+            {isItcMatched ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-400 bg-emerald-950/60 border border-emerald-600/40 px-2.5 py-1 rounded-full font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Net Books ITC & 2B Reconciled (₹0 Variance)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-amber-300 bg-amber-950/60 border border-amber-600/40 px-2.5 py-1 rounded-full font-bold">
+                <AlertTriangle className="w-3.5 h-3.5" /> Net ITC Variance: {formatCurrency(Math.abs(netItcDifference))}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+            <span className="text-[11px] font-semibold text-slate-400">1. Gross Books ITC</span>
+            <p className="text-lg font-bold text-white mt-1">{formatCurrency(totalBooksTax)}</p>
+            <span className="text-[10px] text-slate-400">Total in Purchase Register</span>
+          </div>
+
+          <div className="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-purple-300">2. (-) ITC Reversed</span>
+              <span className="text-[10px] font-bold bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded">
+                {reversedItems.length} inv
+              </span>
+            </div>
+            <p className="text-lg font-bold text-purple-300 mt-1">{formatCurrency(totalReversedTax)}</p>
+            <span className="text-[10px] text-purple-400/80">Sec 17(5) / Rule 37, 42, 43</span>
+          </div>
+
+          <div className="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
+            <span className="text-[11px] font-semibold text-blue-300">3. (=) Net Books ITC</span>
+            <p className="text-lg font-bold text-blue-300 mt-1">{formatCurrency(netEligibleBooksTax)}</p>
+            <span className="text-[10px] text-blue-400/80">Gross Books (-) Reversed</span>
+          </div>
+
+          <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
+            <span className="text-[11px] font-semibold text-emerald-300">4. GSTR-2B Available ITC</span>
+            <p className="text-lg font-bold text-emerald-300 mt-1">{formatCurrency(total2bEligibleTax)}</p>
+            <span className="text-[10px] text-emerald-400/80">Eligible on GST Portal</span>
+          </div>
+
+          <div
+            className={`p-3 rounded-xl border col-span-2 md:col-span-1 ${
+              isItcMatched
+                ? "bg-emerald-950/50 border-emerald-700/60 text-emerald-300"
+                : "bg-rose-950/50 border-rose-700/60 text-rose-300"
+            }`}
+          >
+            <span className="text-[11px] font-semibold">
+              {isItcMatched ? "5. Net Status" : "5. Net Variance"}
+            </span>
+            <p className="text-lg font-bold mt-1">
+              {formatCurrency(Math.abs(netItcDifference))}
+            </p>
+            <span className="text-[10px] opacity-80">
+              {netItcDifference > 0
+                ? "Excess in Books"
+                : netItcDifference < 0
+                ? "Available in 2B"
+                : "100% Reconciled"}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Tolerances Banner */}
       <div className="bg-slate-900 text-slate-300 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-4">
@@ -166,7 +412,7 @@ export function BooksVs2BClient({
           { key: "DATE_DIFFERENCE", label: "Date Diff" },
           { key: "BOOKS_ONLY", label: "Books Only" },
           { key: "STATEMENT_ONLY", label: "2B Only" },
-          { key: "ITC_INELIGIBLE", label: "Ineligible" },
+          { key: "ITC_REVERSED", label: `ITC Reversed (${reversedItems.length})` },
           { key: "MANUAL_REVIEW", label: "Fuzzy / Review" },
           { key: "MANUAL_MATCHED", label: "Manually Matched" },
         ].map((tab) => (
@@ -246,71 +492,98 @@ export function BooksVs2BClient({
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    {/* Books Side */}
-                    <td className="px-3 py-2.5">
-                      <div className="font-semibold text-slate-900 max-w-[130px] truncate">
-                        {item.booksSupplier || "-"}
-                      </div>
-                      <div className="font-mono text-[10px] text-slate-500">{item.booksGstin || "-"}</div>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700">{item.booksInvoiceNo || "-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{formatDate(item.booksDate)}</td>
-                    <td className="px-3 py-2.5 text-right font-medium text-slate-900">
-                      {item.booksTaxable !== null && item.booksTaxable !== undefined
-                        ? formatCurrency((item.booksIgst || 0) + (item.booksCgst || 0) + (item.booksSgst || 0))
-                        : "-"}
-                    </td>
+                filteredItems.map((item) => {
+                  const isReversed =
+                    item.matchStatus === "ITC_INELIGIBLE" ||
+                    (item.remarks && item.remarks.toLowerCase().includes("itc reversed")) ||
+                    (item.actionRequired && item.actionRequired.toLowerCase().includes("reversed"));
 
-                    {/* 2B Side */}
-                    <td className="px-3 py-2.5 border-l border-slate-200">
-                      <div className="font-semibold text-slate-900 max-w-[130px] truncate">
-                        {item.stmtSupplier || "-"}
-                      </div>
-                      <div className="font-mono text-[10px] text-slate-500">{item.stmtGstin || "-"}</div>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700">{item.stmtInvoiceNo || "-"}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{formatDate(item.stmtDate)}</td>
-                    <td className="px-3 py-2.5 text-right font-medium text-slate-900">
-                      {item.stmtTaxable !== null && item.stmtTaxable !== undefined
-                        ? formatCurrency((item.stmtIgst || 0) + (item.stmtCgst || 0) + (item.stmtSgst || 0))
-                        : "-"}
-                    </td>
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      {/* Books Side */}
+                      <td className="px-3 py-2.5">
+                        <div className="font-semibold text-slate-900 max-w-[130px] truncate">
+                          {item.booksSupplier || "-"}
+                        </div>
+                        <div className="font-mono text-[10px] text-slate-500">{item.booksGstin || "-"}</div>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-slate-700">{item.booksInvoiceNo || "-"}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{formatDate(item.booksDate)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-slate-900">
+                        {item.booksTaxable !== null && item.booksTaxable !== undefined
+                          ? formatCurrency((item.booksIgst || 0) + (item.booksCgst || 0) + (item.booksSgst || 0))
+                          : "-"}
+                      </td>
 
-                    {/* Variance & Audit */}
-                    <td className="px-3 py-2.5 border-l border-slate-200">
-                      {getStatusBadge(item.matchStatus)}
-                    </td>
-                    <td
-                      className={`px-3 py-2.5 text-right font-bold ${
-                        Math.abs(item.diffTotal || 0) > 0.01 ? "text-red-600" : "text-emerald-600"
-                      }`}
-                    >
-                      {formatCurrency(Math.abs(item.diffTotal || 0))}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-600 max-w-[180px] text-[11px]">
-                      {item.actionRequired || item.remarks || "-"}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      {item.matchStatus === "MANUAL_REVIEW" ||
-                      item.matchStatus === "TAX_DIFFERENCE" ||
-                      item.matchStatus === "DATE_DIFFERENCE" ? (
-                        <button
-                          onClick={() => {
-                            setModalItem(item);
-                            setMatchReason("Verified tax invoice and confirmed genuine match");
-                          }}
-                          className="px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[11px] font-semibold border border-blue-200"
-                        >
-                          Manual Match
-                        </button>
-                      ) : (
-                        <span className="text-slate-300">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      {/* 2B Side */}
+                      <td className="px-3 py-2.5 border-l border-slate-200">
+                        <div className="font-semibold text-slate-900 max-w-[130px] truncate">
+                          {item.stmtSupplier || "-"}
+                        </div>
+                        <div className="font-mono text-[10px] text-slate-500">{item.stmtGstin || "-"}</div>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-slate-700">{item.stmtInvoiceNo || "-"}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{formatDate(item.stmtDate)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-slate-900">
+                        {item.stmtTaxable !== null && item.stmtTaxable !== undefined
+                          ? formatCurrency((item.stmtIgst || 0) + (item.stmtCgst || 0) + (item.stmtSgst || 0))
+                          : "-"}
+                      </td>
+
+                      {/* Variance & Audit */}
+                      <td className="px-3 py-2.5 border-l border-slate-200">
+                        {getStatusBadge(item.matchStatus, item)}
+                      </td>
+                      <td
+                        className={`px-3 py-2.5 text-right font-bold ${
+                          Math.abs(item.diffTotal || 0) > 0.01 ? "text-red-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {formatCurrency(Math.abs(item.diffTotal || 0))}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600 max-w-[180px] text-[11px]">
+                        {item.actionRequired || item.remarks || "-"}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <div className="inline-flex items-center gap-1.5">
+                          {/* ITC Reverse / Restore Button */}
+                          {isReversed ? (
+                            <button
+                              onClick={() => handleRestoreItc(item)}
+                              className="px-2 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded text-[11px] font-semibold border border-purple-200"
+                              title="Restore ITC as eligible"
+                            >
+                              Restore ITC
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openReverseModal(item)}
+                              className="px-2 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded text-[11px] font-semibold border border-amber-200"
+                              title="Reverse ITC in Books / 3B"
+                            >
+                              Reverse ITC
+                            </button>
+                          )}
+
+                          {/* Manual Match Button if applicable */}
+                          {(item.matchStatus === "MANUAL_REVIEW" ||
+                            item.matchStatus === "TAX_DIFFERENCE" ||
+                            item.matchStatus === "DATE_DIFFERENCE") && (
+                            <button
+                              onClick={() => {
+                                setModalItem(item);
+                                setMatchReason("Verified tax invoice and confirmed genuine match");
+                              }}
+                              className="px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[11px] font-semibold border border-blue-200"
+                            >
+                              Match
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -375,6 +648,127 @@ export function BooksVs2BClient({
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
                 >
                   {matchingLoading ? "Matching..." : "Confirm & Save Match"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ITC Reversal Modal */}
+      {reverseModalItem && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Mark ITC as Reversed</h3>
+                <p className="text-xs text-slate-500">
+                  Exclude this ITC to reconcile Net Eligible Credit with Books & Form 3B
+                </p>
+              </div>
+              <button
+                onClick={() => setReverseModalItem(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl text-xs space-y-1.5 border border-slate-200">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Supplier:</span>
+                <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                  {reverseModalItem.booksSupplier || reverseModalItem.stmtSupplier || "Unknown"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Invoice Number:</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {reverseModalItem.booksInvoiceNo || reverseModalItem.stmtInvoiceNo || "-"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Invoice Tax Amount:</span>
+                <span className="font-bold text-slate-900">
+                  {formatCurrency(
+                    (reverseModalItem.booksTaxable !== null && reverseModalItem.booksTaxable !== undefined
+                      ? (reverseModalItem.booksIgst || 0) + (reverseModalItem.booksCgst || 0) + (reverseModalItem.booksSgst || 0)
+                      : (reverseModalItem.stmtIgst || 0) + (reverseModalItem.stmtCgst || 0) + (reverseModalItem.stmtSgst || 0)) || 0
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleReverseItcSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Reason for ITC Reversal:
+                </label>
+                <select
+                  value={reversalReason}
+                  onChange={(e) => setReversalReason(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="Section 17(5) Blocked Credit">
+                    Section 17(5) - Ineligible / Blocked Credit (Motor Vehicles, Food, Club, etc.)
+                  </option>
+                  <option value="Rule 37 (180 Days Non-payment)">
+                    Rule 37 - 180 Days Supplier Payment Not Made
+                  </option>
+                  <option value="Rule 42/43 (Exempt/Personal Supply)">
+                    Rule 42/43 - Inputs/Capital Goods Used for Exempt/Personal Supply
+                  </option>
+                  <option value="Reversed in GSTR-3B Table 4(B)">
+                    Table 4(B) - Reversed in Form GSTR-3B Return
+                  </option>
+                  <option value="Debit Note / Purchase Return">
+                    Debit Note / Purchase Return / Rate Difference Adjustment
+                  </option>
+                  <option value="Other Reversal">Other Reversal / Manual Audit Adjustment</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Reversal Amount (₹):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={reversalAmount}
+                  onChange={(e) => setReversalAmount(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Remarks / Audit Justification (Optional):
+                </label>
+                <input
+                  type="text"
+                  value={reversalRemarks}
+                  onChange={(e) => setReversalRemarks(e.target.value)}
+                  placeholder="e.g. Reversed in Table 4(B)(2) of May 2026 return"
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setReverseModalItem(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reversalLoading}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+                >
+                  {reversalLoading ? "Saving..." : "Confirm ITC Reversal"}
                 </button>
               </div>
             </form>
