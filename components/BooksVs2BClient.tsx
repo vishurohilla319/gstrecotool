@@ -325,47 +325,46 @@ export function BooksVs2BClient({
     }
   };
 
-  // Live ITC calculations for matching with Books
-  const totalBooksTax = items.reduce(
-    (acc, i) =>
-      acc +
-      (i.booksTaxable !== null && i.booksTaxable !== undefined
-        ? (i.booksIgst || 0) + (i.booksCgst || 0) + (i.booksSgst || 0)
-        : 0),
-    0
-  );
+  // Live ITC calculations for matching with Books & GSTR-2B
+  const isItemInBooks = (item: any) =>
+    Boolean(item.booksRecordId || (item.booksTaxable !== null && item.booksTaxable !== undefined));
 
-  const reversedItems = items.filter(
-    (i) =>
-      i.matchStatus === "ITC_INELIGIBLE" ||
-      (i.remarks && i.remarks.toLowerCase().includes("itc reversed")) ||
-      (i.actionRequired && i.actionRequired.toLowerCase().includes("reversed"))
-  );
+  const isItemIn2B = (item: any) =>
+    Boolean(item.statementRecordId || (item.stmtTaxable !== null && item.stmtTaxable !== undefined));
 
-  const totalReversedTax = reversedItems.reduce(
-    (acc, i) =>
-      acc +
-      ((i.booksTaxable !== null && i.booksTaxable !== undefined
-        ? (i.booksIgst || 0) + (i.booksCgst || 0) + (i.booksSgst || 0)
-        : (i.stmtIgst || 0) + (i.stmtCgst || 0) + (i.stmtSgst || 0)) || 0),
-    0
-  );
+  const getBooksTax = (item: any) =>
+    isItemInBooks(item)
+      ? (item.booksIgst || 0) + (item.booksCgst || 0) + (item.booksSgst || 0)
+      : 0;
 
-  const netEligibleBooksTax = Math.max(0, totalBooksTax - totalReversedTax);
+  const getStmtTax = (item: any) =>
+    isItemIn2B(item)
+      ? (item.stmtIgst || 0) + (item.stmtCgst || 0) + (item.stmtSgst || 0)
+      : 0;
 
-  const total2bEligibleTax = items.reduce(
-    (acc, i) =>
-      acc +
-      (i.stmtTaxable !== null &&
-      i.stmtTaxable !== undefined &&
-      i.matchStatus !== "ITC_INELIGIBLE" &&
-      (!i.remarks || !i.remarks.toLowerCase().includes("ineligible"))
-        ? (i.stmtIgst || 0) + (i.stmtCgst || 0) + (i.stmtSgst || 0)
-        : 0),
-    0
-  );
+  const isItemReversed = (item: any) =>
+    item.matchStatus === "ITC_INELIGIBLE" ||
+    (item.remarks && item.remarks.toLowerCase().includes("itc reversed")) ||
+    (item.actionRequired && item.actionRequired.toLowerCase().includes("reversed"));
 
-  const netItcDifference = Math.round((netEligibleBooksTax - total2bEligibleTax) * 100) / 100;
+  const totalBooksTax = items.reduce((acc, i) => acc + getBooksTax(i), 0);
+  const total2bGrossTax = items.reduce((acc, i) => acc + getStmtTax(i), 0);
+
+  const reversedItems = items.filter((i) => isItemReversed(i));
+
+  // Reversed in Books (only for items that actually exist in Books)
+  const booksReversedItems = items.filter((i) => isItemReversed(i) && isItemInBooks(i));
+  const totalBooksReversedTax = booksReversedItems.reduce((acc, i) => acc + getBooksTax(i), 0);
+
+  // Ineligible / Reversed in GSTR-2B (items excluded from 2B credit)
+  const stmtReversedItems = items.filter((i) => isItemReversed(i) && isItemIn2B(i));
+  const totalStmtReversedTax = stmtReversedItems.reduce((acc, i) => acc + getStmtTax(i), 0);
+
+  // Net Eligible Credit
+  const netEligibleBooksTax = Math.max(0, totalBooksTax - totalBooksReversedTax);
+  const net2bEligibleTax = Math.max(0, total2bGrossTax - totalStmtReversedTax);
+
+  const netItcDifference = Math.round((netEligibleBooksTax - net2bEligibleTax) * 100) / 100;
   const isItcMatched = Math.abs(netItcDifference) <= (tolerances?.taxableTolerance ?? 1.0);
 
   const filteredItems = items.filter((item) => {
@@ -499,13 +498,13 @@ export function BooksVs2BClient({
 
           <div className="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-purple-300">2. (-) ITC Reversed</span>
+              <span className="text-[11px] font-semibold text-purple-300">2. (-) Books ITC Reversed</span>
               <span className="text-[10px] font-bold bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded">
-                {reversedItems.length} inv
+                {booksReversedItems.length} inv
               </span>
             </div>
-            <p className="text-lg font-bold text-purple-300 mt-1">{formatCurrency(totalReversedTax)}</p>
-            <span className="text-[10px] text-purple-400/80">Sec 17(5) / Rule 37, 42, 43</span>
+            <p className="text-lg font-bold text-purple-300 mt-1">{formatCurrency(totalBooksReversedTax)}</p>
+            <span className="text-[10px] text-purple-400/80">Reversed in Purchase Register</span>
           </div>
 
           <div className="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
@@ -515,9 +514,20 @@ export function BooksVs2BClient({
           </div>
 
           <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
-            <span className="text-[11px] font-semibold text-emerald-300">4. GSTR-2B Available ITC</span>
-            <p className="text-lg font-bold text-emerald-300 mt-1">{formatCurrency(total2bEligibleTax)}</p>
-            <span className="text-[10px] text-emerald-400/80">Eligible on GST Portal</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-emerald-300">4. GSTR-2B Available ITC</span>
+              {stmtReversedItems.length > 0 && (
+                <span className="text-[9px] font-bold bg-emerald-900/60 text-emerald-200 px-1.5 py-0.5 rounded">
+                  -{formatCurrency(totalStmtReversedTax)} inelig.
+                </span>
+              )}
+            </div>
+            <p className="text-lg font-bold text-emerald-300 mt-1">{formatCurrency(net2bEligibleTax)}</p>
+            <span className="text-[10px] text-emerald-400/80">
+              {stmtReversedItems.length > 0
+                ? `Portal Gross (${formatCurrency(total2bGrossTax)}) (-) Ineligible`
+                : "Eligible on GST Portal"}
+            </span>
           </div>
 
           <div
