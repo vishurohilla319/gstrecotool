@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdf = require("pdf-parse");
+const zlib = require("zlib");
 
 export interface ParsedGstr3B {
   gstin?: string;
@@ -29,25 +29,68 @@ const MONTH_NAMES = [
   "October", "November", "December", "January", "February", "March"
 ];
 
+// Pure JS stream text extractor as guaranteed fallback (zero external dependencies)
+function extractTextPureJs(buffer: Buffer): string {
+  let fullText = "";
+  try {
+    const rawString = buffer.toString("binary");
+    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = streamRegex.exec(rawString)) !== null) {
+      try {
+        const streamContent = Buffer.from(match[1], "binary");
+        const decompressed = zlib.inflateSync(streamContent);
+        const decString = decompressed.toString("utf-8");
+
+        const tjMatches = decString.match(/\(([^)]*)\)\s*Tj/g);
+        if (tjMatches) {
+          for (const m of tjMatches) {
+            const inner = m.match(/\(([^)]*)\)/);
+            if (inner && inner[1]) fullText += " " + inner[1];
+          }
+        }
+
+        const bigTjMatches = decString.match(/\[(.*?)\]\s*TJ/g);
+        if (bigTjMatches) {
+          for (const m of bigTjMatches) {
+            const strings = m.match(/\(([^)]*)\)/g);
+            if (strings) {
+              for (const s of strings) {
+                fullText += " " + s.slice(1, -1);
+              }
+            }
+          }
+        }
+
+        fullText += "\n" + decString + "\n";
+      } catch {
+        fullText += "\n" + match[1] + "\n";
+      }
+    }
+  } catch (e) {
+    console.error("extractTextPureJs error:", e);
+  }
+
+  fullText += "\n" + buffer.toString("utf-8", 0, Math.min(buffer.length, 60000));
+  return fullText;
+}
+
 export async function parseGstr3BPdf(buffer: Buffer): Promise<ParsedGstr3B> {
   let text = "";
   try {
-    if (pdf && pdf.PDFParse) {
-      const parser = new pdf.PDFParse({ data: buffer });
-      const result = await parser.getText();
-      text = result?.text || (typeof result === "string" ? result : "");
-    } else if (typeof pdf === "function") {
-      const result = await pdf(buffer);
-      text = result?.text || "";
-    } else if (typeof pdf?.default === "function") {
-      const result = await pdf.default(buffer);
-      text = result?.text || "";
-    } else {
-      throw new Error("PDF parser module is not initialized");
-    }
-  } catch (err: any) {
-    console.error("PDF parse error:", err);
-    throw new Error("Failed to extract text from PDF: " + err.message);
+    // Try pdf-parse library
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pdfLib = require("pdf-parse/lib/pdf-parse.js");
+    const data = await pdfLib(buffer);
+    text = data.text || "";
+  } catch (libErr) {
+    console.warn("pdf-parse error, falling back to pure JS extractor:", libErr);
+    text = extractTextPureJs(buffer);
+  }
+
+  if (!text || text.trim().length === 0) {
+    text = extractTextPureJs(buffer);
   }
 
   // 1. Extract GSTIN

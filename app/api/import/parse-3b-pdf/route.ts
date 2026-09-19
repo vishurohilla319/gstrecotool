@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
 import { parseGstr3BPdf } from "@/lib/pdf-3b-parser";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    await requireUser();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Session expired. Please log in again." },
+        { status: 200 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: "No PDF file provided" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "No PDF file provided" },
+        { status: 200 }
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -24,6 +34,9 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("parse-3b-pdf error:", error);
-    return NextResponse.json({ error: error.message || "Failed to parse GSTR-3B PDF" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to parse GSTR-3B PDF" },
+      { status: 200 }
+    );
   }
 }
