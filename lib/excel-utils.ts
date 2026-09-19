@@ -9,54 +9,54 @@ export interface ColumnMappingDefinition {
 }
 
 export const PURCHASE_BOOK_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier", "gstin/uin", "gstin / uin", "party gstin/uin", "gst no", "gst no.", "gst number", "gstin no", "gstin_uin", "gst", "party's gstin/uin"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "vendor name", "supplier", "particulars", "party", "ledger name", "account name", "name of supplier", "name of party", "name of the supplier", "trade/legal name", "party's name"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "invoice no.", "inv no", "inv no.", "bill no", "bill no.", "bill number", "doc no", "doc no.", "document number", "vch no", "vch no.", "voucher no", "voucher no.", "ref no", "ref no.", "supplier invoice no", "reference no", "invoice number/document number"] },
-  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "bill date", "date", "document date", "vch date", "voucher date", "inv. date", "invoice dt", "doc date", "voucher dt"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable amt", "taxable", "assessable value", "assessable amt", "taxable value (₹)", "taxable value(₹)", "basic amount", "basic value", "taxable val", "taxable amt."] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "igst amount", "igst amt", "igst (₹)", "i.g.s.t", "integrated tax amt"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "cgst amount", "cgst amt", "cgst (₹)", "c.g.s.t", "central tax amt"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state/ut tax", "state tax", "state tax (₹)", "state/ut tax (₹)", "state/ut tax(₹)", "sgst amount", "sgst amt", "sgst (₹)", "s.g.s.t", "utgst", "state tax amt"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount", "cess amt"] },
-  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "invoice amount", "total value", "total amount", "net amount", "gross total", "bill amount", "total", "grand total", "inv value", "invoice value (₹)", "total amt"] },
-  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply", "state"] },
-  { field: "rcm", label: "RCM (Y/N)", required: false, aliases: ["rcm", "reverse charge", "reverse charge (y/n)"] },
-  { field: "itcEligible", label: "ITC Eligible (Y/N)", required: false, aliases: ["itc eligible", "itc eligibility", "itc available", "itc (y/n)"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier", "gstin/uin", "gstin / uin", "party gstin/uin", "gst no", "gst no.", "gst number", "gstin no", "gstin_uin", "gst", "party's gstin/uin", "party gstin no", "supplier gst no", "tin/gstin", "gstin no.", "gstin number", "party gst"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "vendor name", "supplier", "particulars", "party", "ledger name", "account name", "name of supplier", "name of party", "name of the supplier", "trade/legal name", "party's name", "party particulars", "party_name", "supplier_name", "account", "ledger"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "invoice no.", "inv no", "inv no.", "bill no", "bill no.", "bill number", "doc no", "doc no.", "document number", "vch no", "vch no.", "voucher no", "voucher no.", "ref no", "ref no.", "supplier invoice no", "reference no", "invoice number/document number", "inv. no.", "bill_no", "inv_no", "vch_no", "invoice details", "vch ref no", "ref. no.", "voucher number", "bill reference"] },
+  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "bill date", "date", "document date", "vch date", "voucher date", "inv. date", "invoice dt", "doc date", "voucher dt", "inv_date", "bill_date", "vch_date", "dt", "bill dt"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable amt", "taxable", "assessable value", "assessable amt", "taxable value (₹)", "taxable value(₹)", "basic amount", "basic value", "taxable val", "taxable amt.", "taxable_amount", "assessable_value", "goods value", "net amount", "taxable amt (₹)"] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "igst amount", "igst amt", "igst (₹)", "i.g.s.t", "integrated tax amt", "igst_amount", "amount of tax integrated tax"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "cgst amount", "cgst amt", "cgst (₹)", "c.g.s.t", "central tax amt", "cgst_amount", "amount of tax central tax"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state/ut tax", "state tax", "state tax (₹)", "state/ut tax (₹)", "state/ut tax(₹)", "sgst amount", "sgst amt", "sgst (₹)", "s.g.s.t", "utgst", "state tax amt", "sgst_amount", "amount of tax state/ut tax"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount", "cess amt", "cess_amount", "amount of tax cess"] },
+  { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "invoice amount", "total value", "total amount", "net amount", "gross total", "bill amount", "total", "grand total", "inv value", "invoice value (₹)", "invoice value(₹)", "total amt", "total_amount", "invoice_value", "gross amt"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply", "place of delivery", "supply state", "pos state"] },
+  { field: "rcm", label: "RCM (Y/N)", required: false, aliases: ["rcm", "reverse charge", "reverse charge (y/n)", "reverse_charge", "supply attract reverse charge", "supply attracts reverse charge"] },
+  { field: "itcEligible", label: "ITC Eligible (Y/N)", required: false, aliases: ["itc eligible", "itc eligibility", "itc available", "itc (y/n)", "itc_eligible"] },
 ];
 
 export const GSTR_2A_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "legal name", "trade name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier", "supplier's gstin"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "legal name", "trade name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name", "name of supplier", "particulars"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number", "invoice details", "inv no."] },
   { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date", "invoice date(dd/mm/yyyy)", "invoice date (dd-mm-yyyy)", "invoice dt"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val"] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val", "taxable amt"] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount", "amount of tax integrated tax"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount", "amount of tax central tax"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount", "amount of tax state/ut tax"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount", "amount of tax cess"] },
   { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value", "invoice value (₹)", "invoice value(₹)", "invoice amount", "total amount"] },
-  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state"] },
-  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm", "supply attract reverse charge", "supply attracts reverse charge"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply", "place of delivery"] },
+  { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm", "supply attract reverse charge", "supply attracts reverse charge", "reverse charge (y/n)"] },
   { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type", "invoice type"] },
   { field: "amendmentStatus", label: "Amendment Status", required: false, aliases: ["amendment status", "amended", "amendment"] },
 ];
 
 export const GSTR_2B_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier"] },
-  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name"] },
-  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number"] },
-  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date", "invoice date(dd/mm/yyyy)", "invoice date (dd-mm-yyyy)", "invoice dt"] },
-  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val"] },
-  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount"] },
-  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount"] },
-  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount"] },
-  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount"] },
+  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "gstin of supplier", "gstin_uin", "gstin/uin", "gstin/uin of supplier", "gstin of the supplier", "supplier's gstin"] },
+  { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "trade/legal name", "legal/trade name", "legal name of supplier", "trade/ legal name", "supplier trade/legal name", "name of supplier", "particulars"] },
+  { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "inv no", "document number", "invoice no.", "doc no", "invoice number/document number", "invoice details", "inv no."] },
+  { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "date", "invoice date(dd/mm/yyyy)", "invoice date (dd-mm-yyyy)", "invoice dt", "invoice date (dd/mm/yyyy)"] },
+  { field: "taxableValue", label: "Taxable Value", required: true, aliases: ["taxable value", "taxable amount", "taxable", "taxable value (₹)", "taxable value(₹)", "taxable val", "taxable amt"] },
+  { field: "igst", label: "IGST", required: false, aliases: ["igst", "integrated tax", "integrated tax (₹)", "integrated tax(₹)", "integrated tax amount", "amount of tax integrated tax"] },
+  { field: "cgst", label: "CGST", required: false, aliases: ["cgst", "central tax", "central tax (₹)", "central tax(₹)", "central tax amount", "amount of tax central tax"] },
+  { field: "sgst", label: "SGST", required: false, aliases: ["sgst", "state tax", "state/ut tax", "state/ut tax (₹)", "state/ut tax(₹)", "state tax (₹)", "state tax amount", "amount of tax state/ut tax"] },
+  { field: "cess", label: "Cess", required: false, aliases: ["cess", "cess (₹)", "cess(₹)", "cess amount", "amount of tax cess"] },
   { field: "invoiceValue", label: "Invoice Value", required: false, aliases: ["invoice value", "total value", "invoice value (₹)", "invoice value(₹)", "invoice amount", "total amount"] },
   { field: "itcAvailability", label: "ITC Availability (Y/N)", required: false, aliases: ["itc availability", "itc available", "itc availability (y/n)", "itc eligibility", "itc available (y/n)"] },
   { field: "docType", label: "Document Type", required: false, aliases: ["document type", "doc type", "invoice type"] },
   { field: "rcm", label: "Reverse Charge (Y/N)", required: false, aliases: ["reverse charge", "rcm", "supply attract reverse charge", "supply attracts reverse charge", "reverse charge (y/n)"] },
   { field: "amendmentStatus", label: "Amendment Status", required: false, aliases: ["amendment status", "amended", "amendment"] },
-  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply"] },
+  { field: "pos", label: "Place of Supply", required: false, aliases: ["place of supply", "pos", "state of supply", "place of delivery"] },
 ];
 
 export const GSTR_3B_COLUMNS: ColumnMappingDefinition[] = [
@@ -85,16 +85,18 @@ export function getDefinitionsForType(fileType: string): ColumnMappingDefinition
 }
 
 /**
- * Intelligent auto-mapping with alphanumeric normalization
+ * Intelligent auto-mapping with alphanumeric normalization and collision avoidance
  */
 export function autoMapColumns(
   detectedHeaders: string[],
   definitions: ColumnMappingDefinition[]
 ): Record<string, string> {
   const mapping: Record<string, string> = {};
+  const usedHeaders = new Set<string>();
 
   for (const def of definitions) {
     for (const header of detectedHeaders) {
+      if (usedHeaders.has(header)) continue;
       const cleanHeader = header.trim().toLowerCase();
       const normHeader = cleanHeader.replace(/[^a-z0-9]/g, "");
 
@@ -109,13 +111,13 @@ export function autoMapColumns(
         return (
           cleanHeader === cand ||
           normHeader === normCand ||
-          (normCand.length >= 4 && normHeader.includes(normCand)) ||
-          (normHeader.length >= 4 && normCand.includes(normHeader))
+          (normCand.length >= 4 && normHeader.includes(normCand))
         );
       });
 
       if (match) {
         mapping[def.field] = header;
+        usedHeaders.add(header);
         break;
       }
     }
@@ -214,17 +216,11 @@ export function smartExtractSheetData(
 
   const definitions = getDefinitionsForType(fileType);
 
-  // Scan first 25 rows to detect the true table header row
-  let bestHeaderRowIndex = 0;
-  let maxScore = -1;
-
-  for (let r = 0; r < Math.min(25, rawMatrix.length); r++) {
-    const row = rawMatrix[r];
-    if (!Array.isArray(row)) continue;
-
+  // Helper to score a row against definitions
+  const scoreRow = (row: any[]): number => {
+    if (!Array.isArray(row)) return 0;
     let score = 0;
     const cleanCells = row.map((c) => String(c ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
-
     for (const def of definitions) {
       const allAliases = [
         def.field.toLowerCase(),
@@ -232,32 +228,100 @@ export function smartExtractSheetData(
         ...def.aliases.map((a) => a.toLowerCase()),
       ].map((a) => a.replace(/[^a-z0-9]/g, ""));
 
-      if (cleanCells.some((cell) => cell && allAliases.some((alias) => cell === alias || (alias.length >= 5 && cell.includes(alias))))) {
+      if (cleanCells.some((cell) => cell && allAliases.some((alias) => cell === alias || (alias.length >= 4 && cell.includes(alias))))) {
         score++;
       }
     }
+    return score;
+  };
 
-    if (score > maxScore) {
-      maxScore = score;
+  // Scan first 25 rows to detect the true table header row
+  let bestHeaderRowIndex = 0;
+  let maxScore = -1;
+
+  for (let r = 0; r < Math.min(25, rawMatrix.length); r++) {
+    const s = scoreRow(rawMatrix[r]);
+    if (s > maxScore) {
+      maxScore = s;
       bestHeaderRowIndex = r;
     }
   }
 
-  // Extract detected headers
-  const headerRow = rawMatrix[bestHeaderRowIndex] || [];
+  // Multi-Row Header Consolidation:
+  // Official GST Portal 2B/2A and many accounting packages use 2 vertically merged header rows
+  // (e.g. Row 5 has "GSTIN of supplier", "Trade/Legal name", "Taxable Value (₹)"; Row 6 has "Invoice number", "Central Tax(₹)")
+  let topRowIdx = bestHeaderRowIndex;
+  let botRowIdx = bestHeaderRowIndex;
+
+  if (bestHeaderRowIndex > 0) {
+    const prevScore = scoreRow(rawMatrix[bestHeaderRowIndex - 1]);
+    const prevRow = rawMatrix[bestHeaderRowIndex - 1];
+    const prevHasKeywords = Array.isArray(prevRow) && prevRow.some((c) =>
+      /gstin|supplier|trade|legal|party|invoice\s*details|amount\s*of\s*tax|place\s*of\s*supply|reverse\s*charge/i.test(String(c ?? ""))
+    );
+    if (prevScore >= 2 || prevHasKeywords) {
+      topRowIdx = bestHeaderRowIndex - 1;
+      botRowIdx = bestHeaderRowIndex;
+    }
+  }
+
+  if (topRowIdx === botRowIdx && bestHeaderRowIndex + 1 < rawMatrix.length) {
+    const nextScore = scoreRow(rawMatrix[bestHeaderRowIndex + 1]);
+    const nextRow = rawMatrix[bestHeaderRowIndex + 1];
+    const nextHasKeywords = Array.isArray(nextRow) && nextRow.some((c) =>
+      /invoice\s*(number|no|date|type|value)|integrated|central|state|cess/i.test(String(c ?? ""))
+    );
+    const nextHasGstinData = Array.isArray(nextRow) && nextRow.some((c) => isValidGstin(String(c ?? "")));
+
+    if (!nextHasGstinData && (nextScore >= 2 || nextHasKeywords)) {
+      topRowIdx = bestHeaderRowIndex;
+      botRowIdx = bestHeaderRowIndex + 1;
+    }
+  }
+
+  // Consolidate headers across topRowIdx and botRowIdx
+  const topRow = rawMatrix[topRowIdx] || [];
+  const botRow = rawMatrix[botRowIdx] || [];
+  const maxCols = Math.max(topRow.length, botRow.length);
   const headers: string[] = [];
-  headerRow.forEach((col: any, idx: number) => {
-    const colName = String(col ?? "").trim();
+
+  for (let c = 0; c < maxCols; c++) {
+    const top = String(topRow[c] ?? "").trim();
+    const bot = String(botRow[c] ?? "").trim();
+
+    let colName = "";
+    if (topRowIdx === botRowIdx) {
+      colName = bot || top;
+    } else {
+      if (bot && !top) {
+        colName = bot;
+      } else if (top && !bot) {
+        colName = top;
+      } else if (bot && top) {
+        // If top is a generic section header like "Invoice details" or "Amount of Tax", prefer specific sub-header
+        if (/invoice\s*details|amount\s*of\s*tax|tax\s*details|tax\s*amount/i.test(top)) {
+          colName = bot;
+        } else if (/invoice\s*details|amount\s*of\s*tax|tax\s*details/i.test(bot)) {
+          colName = top;
+        } else if (top.toLowerCase() === bot.toLowerCase()) {
+          colName = top;
+        } else {
+          colName = bot;
+        }
+      }
+    }
+
     if (colName) {
       headers.push(colName);
     } else {
-      headers.push(`Column_${idx + 1}`);
+      headers.push(`Column_${c + 1}`);
     }
-  });
+  }
 
-  // Map remaining rows to JSON objects using detected headers
+  // Map remaining data rows to JSON objects using consolidated headers
+  const dataStartRow = botRowIdx + 1;
   const rows: Record<string, any>[] = [];
-  for (let r = bestHeaderRowIndex + 1; r < rawMatrix.length; r++) {
+  for (let r = dataStartRow; r < rawMatrix.length; r++) {
     const rowArr = rawMatrix[r];
     if (!rowArr || !Array.isArray(rowArr)) continue;
 
@@ -277,13 +341,16 @@ export function smartExtractSheetData(
 
   // Deep Content Inspection: If any required column is still missing, inspect row values!
   if (fileType !== "GSTR_3B" && rows.length > 0) {
-    const sampleRows = rows.slice(0, 15);
+    const sampleRows = rows.slice(0, 20);
     const mappedHeaders = new Set(Object.values(autoMapping));
 
     // 1. Detect GSTIN by 15-character GST pattern in row values
     if (!autoMapping["gstin"]) {
       for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
-        const matches = sampleRows.filter((r) => isValidGstin(String(r[h] ?? "")));
+        const matches = sampleRows.filter((r) => {
+          const val = String(r[h] ?? "").trim().toUpperCase().replace(/[\s\r\n]/g, "");
+          return isValidGstin(val);
+        });
         if (matches.length >= Math.min(1, sampleRows.length)) {
           autoMapping["gstin"] = h;
           mappedHeaders.add(h);
@@ -331,7 +398,6 @@ export function smartExtractSheetData(
           break;
         }
       }
-      // If still not mapped, take the first available non-empty column
       if (!autoMapping["invoiceNumber"]) {
         for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
           if (sampleRows.some((r) => String(r[h] ?? "").trim().length > 0)) {
@@ -349,13 +415,17 @@ export function smartExtractSheetData(
         const headerHint = /party|supplier|name|particulars|vendor|ledger|account/i.test(h);
         const isText = sampleRows.some((r) => {
           const v = String(r[h] ?? "").trim();
-          return v.length > 2 && isNaN(Number(v));
+          return v.length > 2 && isNaN(Number(v)) && parseDateInput(v) === null;
         });
         if (headerHint || isText) {
           autoMapping["supplierName"] = h;
           mappedHeaders.add(h);
           break;
         }
+      }
+      // If still missing but gstin exists, fallback to gstin column so mapping is never blocked
+      if (!autoMapping["supplierName"] && autoMapping["gstin"]) {
+        autoMapping["supplierName"] = autoMapping["gstin"];
       }
     }
   }
@@ -373,7 +443,7 @@ export function smartExtractSheetData(
     rows,
     autoMapping,
     isFullyMapped,
-    detectedHeaderRow: bestHeaderRowIndex + 1,
+    detectedHeaderRow: botRowIdx + 1,
   };
 }
 

@@ -59,7 +59,21 @@ export default function ImportPage() {
     setDetectedHeaders(extracted.headers);
     setRawRows(extracted.rows);
     setColumnMapping(extracted.autoMapping);
-    setIsAutoBypassed(false);
+
+    if (extracted.isFullyMapped) {
+      const { validRows: valid, errors, ignoredCount } = validateRows(
+        extracted.rows,
+        extracted.autoMapping,
+        fileType
+      );
+      setValidRows(valid);
+      setValidationErrors(errors);
+      setIgnoredRowsCount(ignoredCount || 0);
+      setIsAutoBypassed(true);
+      setCurrentStep(5);
+    } else {
+      setIsAutoBypassed(false);
+    }
   };
 
   // Step 2: Handle File Upload
