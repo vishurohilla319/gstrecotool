@@ -30,8 +30,25 @@ const MONTH_NAMES = [
 ];
 
 export async function parseGstr3BPdf(buffer: Buffer): Promise<ParsedGstr3B> {
-  const data = await pdf(buffer);
-  const text = data.text || "";
+  let text = "";
+  try {
+    if (pdf && pdf.PDFParse) {
+      const parser = new pdf.PDFParse({ data: buffer });
+      const result = await parser.getText();
+      text = result?.text || (typeof result === "string" ? result : "");
+    } else if (typeof pdf === "function") {
+      const result = await pdf(buffer);
+      text = result?.text || "";
+    } else if (typeof pdf?.default === "function") {
+      const result = await pdf.default(buffer);
+      text = result?.text || "";
+    } else {
+      throw new Error("PDF parser module is not initialized");
+    }
+  } catch (err: any) {
+    console.error("PDF parse error:", err);
+    throw new Error("Failed to extract text from PDF: " + err.message);
+  }
 
   // 1. Extract GSTIN
   const gstinMatch = text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b/);

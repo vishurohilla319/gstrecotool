@@ -97,12 +97,20 @@ export default function ImportPage() {
         method: "POST",
         body: formData,
       })
-        .then((res) => res.json())
-        .then((resData) => {
-          if (!resData.success) {
-            alert("Error parsing GSTR-3B PDF: " + (resData.error || "Unknown error"));
-            return;
+        .then(async (res) => {
+          const text = await res.text();
+          let json: any;
+          try {
+            json = JSON.parse(text);
+          } catch {
+            throw new Error(`Server response was not JSON (${res.status}). Please ensure it is an official GSTR-3B PDF.`);
           }
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || `Server error (${res.status})`);
+          }
+          return json;
+        })
+        .then((resData) => {
           const p = resData.data;
           const parsedRow = {
             fy: p.fy || "2026-27",
