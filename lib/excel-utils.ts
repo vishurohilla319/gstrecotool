@@ -122,9 +122,11 @@ export function validateRows(
 ): {
   validRows: any[];
   errors: ValidationErrorItem[];
+  ignoredCount: number;
 } {
   const validRows: any[] = [];
   const errors: ValidationErrorItem[] = [];
+  let ignoredCount = 0;
   const seenUniqueKeys = new Set<string>();
 
   rows.forEach((rawRow, idx) => {
@@ -137,8 +139,22 @@ export function validateRows(
       return header ? rawRow[header] : undefined;
     };
 
+    // 1. Skip completely blank rows
+    const rowValues = Object.values(rawRow).map((v) => String(v ?? "").trim());
+    const isBlankRow = rowValues.every((v) => v === "");
+    if (isBlankRow) {
+      ignoredCount++;
+      return;
+    }
+
     if (fileType === "GSTR_3B") {
       const month = getVal("month");
+      const isMonthTotal = String(month ?? "").trim().toLowerCase().startsWith("total");
+      if (isMonthTotal) {
+        ignoredCount++;
+        return;
+      }
+
       if (!month) {
         rowErrors.push("Month / Return Period is required");
       }
@@ -179,6 +195,22 @@ export function validateRows(
     const rawInvNo = getVal("invoiceNumber");
     const rawDate = getVal("invoiceDate");
     const rawTaxable = getVal("taxableValue");
+
+    // 2. Skip Total / Grand Total / Summary rows commonly found at bottom of accounting exports
+    const hasTotalKeyword =
+      rowValues.some((v) => /^(total|grand\s*total|sub\s*total|summary|totals?|total\s+amount)$/i.test(v)) ||
+      String(rawDate ?? "").trim().toLowerCase().startsWith("total") ||
+      String(rawGstin ?? "").trim().toLowerCase().startsWith("total") ||
+      String(rawInvNo ?? "").trim().toLowerCase().startsWith("total");
+
+    const isTotalSummaryRow =
+      hasTotalKeyword &&
+      (!rawInvNo || String(rawInvNo).trim() === "" || !rawGstin || String(rawGstin).trim() === "" || !isValidGstin(String(rawGstin)));
+
+    if (isTotalSummaryRow) {
+      ignoredCount++;
+      return;
+    }
 
     if (!rawGstin) {
       rowErrors.push("Blank or missing Supplier GSTIN");

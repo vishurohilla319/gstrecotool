@@ -39,6 +39,7 @@ export default function ImportPage() {
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [validRows, setValidRows] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([]);
+  const [ignoredRowsCount, setIgnoredRowsCount] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importCompleted, setImportCompleted] = useState(false);
@@ -86,9 +87,10 @@ export default function ImportPage() {
 
   // Step 4 to Step 5: Run validation
   const runValidation = () => {
-    const { validRows: valid, errors } = validateRows(rawRows, columnMapping, fileType);
+    const { validRows: valid, errors, ignoredCount } = validateRows(rawRows, columnMapping, fileType);
     setValidRows(valid);
     setValidationErrors(errors);
+    setIgnoredRowsCount(ignoredCount || 0);
     setCurrentStep(5);
   };
 
@@ -489,8 +491,13 @@ export default function ImportPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-xs text-slate-500 font-medium">Total Rows Checked</span>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{rawRows.length}</p>
+              <span className="text-xs text-slate-500 font-medium">Total Invoices Checked</span>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{validRows.length + validationErrors.length}</p>
+              {ignoredRowsCount > 0 && (
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  ({ignoredRowsCount} summary/blank row{ignoredRowsCount > 1 ? "s" : ""} excluded)
+                </p>
+              )}
             </div>
             <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
               <span className="text-xs text-emerald-800 font-medium">Valid Ready to Import</span>
