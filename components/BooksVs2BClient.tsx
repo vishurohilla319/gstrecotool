@@ -14,6 +14,8 @@ import {
   X,
   Sparkles,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const FY_MONTHS = [
@@ -46,6 +48,9 @@ export function BooksVs2BClient({
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
   const [search, setSearch] = useState("");
   const [runningReco, setRunningReco] = useState(false);
+
+  // Pagination State (15 items per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -364,7 +369,7 @@ export function BooksVs2BClient({
   const netEligibleBooksTax = Math.max(0, totalBooksTax - totalBooksReversedTax);
   const net2bEligibleTax = Math.max(0, total2bGrossTax - totalStmtReversedTax);
 
-  const netItcDifference = Math.round((netEligibleBooksTax - net2bEligibleTax) * 100) / 100;
+  const netItcDifference = Math.round((totalBooksTax - net2bEligibleTax) * 100) / 100;
   const isItcMatched = Math.abs(netItcDifference) <= (tolerances?.taxableTolerance ?? 1.0);
 
   const filteredItems = items.filter((item) => {
@@ -394,23 +399,37 @@ export function BooksVs2BClient({
     return matchesStatus && matchesSearch && matchesMonth;
   });
 
+  // Pagination (15 transactions per page)
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + pageSize);
+
+  const isAllPageSelected =
+    paginatedItems.length > 0 && paginatedItems.every((it) => selectedIds.has(it.id));
+
   const isAllFilteredSelected =
     filteredItems.length > 0 && filteredItems.every((it) => selectedIds.has(it.id));
 
   const toggleSelectAll = () => {
-    if (isAllFilteredSelected) {
+    if (isAllPageSelected) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        filteredItems.forEach((it) => next.delete(it.id));
+        paginatedItems.forEach((it) => next.delete(it.id));
         return next;
       });
     } else {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        filteredItems.forEach((it) => next.add(it.id));
+        paginatedItems.forEach((it) => next.add(it.id));
         return next;
       });
     }
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredItems.map((it) => it.id)));
   };
 
   const toggleSelectItem = (id: string) => {
@@ -490,46 +509,40 @@ export function BooksVs2BClient({
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* Card 1: Books ITC */}
           <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-            <span className="text-[11px] font-semibold text-slate-400">1. Gross Books ITC</span>
+            <span className="text-[11px] font-semibold text-slate-400">1. Books ITC</span>
             <p className="text-lg font-bold text-white mt-1">{formatCurrency(totalBooksTax)}</p>
             <span className="text-[10px] text-slate-400">Total in Purchase Register</span>
           </div>
 
+          {/* Card 2: Gross GSTR-2B ITC */}
+          <div className="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
+            <span className="text-[11px] font-semibold text-blue-300">2. Gross GSTR-2B ITC</span>
+            <p className="text-lg font-bold text-blue-300 mt-1">{formatCurrency(total2bGrossTax)}</p>
+            <span className="text-[10px] text-blue-400/80">Total on GST Portal</span>
+          </div>
+
+          {/* Card 3: (-) 2B ITC Reversed */}
           <div className="bg-purple-950/40 p-3 rounded-xl border border-purple-800/50">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-purple-300">2. (-) Books ITC Reversed</span>
+              <span className="text-[11px] font-semibold text-purple-300">3. (-) 2B ITC Reversed</span>
               <span className="text-[10px] font-bold bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded">
-                {booksReversedItems.length} inv
+                {stmtReversedItems.length} inv
               </span>
             </div>
-            <p className="text-lg font-bold text-purple-300 mt-1">{formatCurrency(totalBooksReversedTax)}</p>
-            <span className="text-[10px] text-purple-400/80">Reversed in Purchase Register</span>
+            <p className="text-lg font-bold text-purple-300 mt-1">{formatCurrency(totalStmtReversedTax)}</p>
+            <span className="text-[10px] text-purple-400/80">Sec 17(5) Ineligible Credit</span>
           </div>
 
-          <div className="bg-blue-950/40 p-3 rounded-xl border border-blue-800/50">
-            <span className="text-[11px] font-semibold text-blue-300">3. (=) Net Books ITC</span>
-            <p className="text-lg font-bold text-blue-300 mt-1">{formatCurrency(netEligibleBooksTax)}</p>
-            <span className="text-[10px] text-blue-400/80">Gross Books (-) Reversed</span>
-          </div>
-
+          {/* Card 4: (=) Net Eligible 2B ITC */}
           <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/50">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-emerald-300">4. GSTR-2B Available ITC</span>
-              {stmtReversedItems.length > 0 && (
-                <span className="text-[9px] font-bold bg-emerald-900/60 text-emerald-200 px-1.5 py-0.5 rounded">
-                  -{formatCurrency(totalStmtReversedTax)} inelig.
-                </span>
-              )}
-            </div>
+            <span className="text-[11px] font-semibold text-emerald-300">4. (=) Net Eligible 2B ITC</span>
             <p className="text-lg font-bold text-emerald-300 mt-1">{formatCurrency(net2bEligibleTax)}</p>
-            <span className="text-[10px] text-emerald-400/80">
-              {stmtReversedItems.length > 0
-                ? `Portal Gross (${formatCurrency(total2bGrossTax)}) (-) Ineligible`
-                : "Eligible on GST Portal"}
-            </span>
+            <span className="text-[10px] text-emerald-400/80">Gross 2B (-) 2B Reversed</span>
           </div>
 
+          {/* Card 5: Net Status / Variance */}
           <div
             className={`p-3 rounded-xl border col-span-2 md:col-span-1 ${
               isItcMatched
@@ -544,11 +557,11 @@ export function BooksVs2BClient({
               {formatCurrency(Math.abs(netItcDifference))}
             </p>
             <span className="text-[10px] opacity-80">
-              {netItcDifference > 0
+              {isItcMatched
+                ? "100% Reconciled (Books = Net 2B)"
+                : netItcDifference > 0
                 ? "Excess in Books"
-                : netItcDifference < 0
-                ? "Available in 2B"
-                : "100% Reconciled"}
+                : "Available in 2B"}
             </span>
           </div>
         </div>
@@ -590,10 +603,13 @@ export function BooksVs2BClient({
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            onClick={() => {
+              setStatusFilter(tab.key);
+              setCurrentPage(1);
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-all text-[11px] ${
               statusFilter === tab.key
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-blue-600 text-white shadow-xs font-bold"
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
@@ -603,29 +619,33 @@ export function BooksVs2BClient({
       </div>
 
       {/* Search & Month Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative w-64 sm:w-72">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-56 sm:w-64">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search vendor, GSTIN, invoice..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="w-full pl-8 pr-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white border border-slate-300 px-2.5 py-1.5 rounded-lg shadow-xs">
+          <div className="flex items-center gap-1.5 bg-white border border-slate-300 px-2.5 py-1 rounded-lg shadow-xs">
             <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="text-[11px] font-semibold text-slate-500">Month:</span>
+            <span className="text-[10px] font-semibold text-slate-500">Month:</span>
             <select
               value={selectedMonth}
               onChange={(e) => {
                 setSelectedMonth(e.target.value);
                 setSelectedIds(new Set());
+                setCurrentPage(1);
               }}
-              className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+              className="text-[11px] font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
             >
               <option value="ALL">All FY Months (Full Year)</option>
               {FY_MONTHS.map((m) => (
@@ -638,8 +658,11 @@ export function BooksVs2BClient({
 
           {selectedMonth !== "ALL" && (
             <button
-              onClick={() => setSelectedMonth("ALL")}
-              className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold underline cursor-pointer"
+              onClick={() => {
+                setSelectedMonth("ALL");
+                setCurrentPage(1);
+              }}
+              className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold underline cursor-pointer"
             >
               Reset Month
             </button>
@@ -650,75 +673,75 @@ export function BooksVs2BClient({
           {selectedIds.size > 0 && (
             <button
               onClick={openBulkReverseModal}
-              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" /> Bulk Reverse ({selectedIds.size})
+              <Sparkles className="w-3 h-3" /> Bulk Reverse ({selectedIds.size})
             </button>
           )}
 
           <a
             href="/api/export?type=FULL_RECONCILIATION&format=xlsx"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs"
+            className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-[11px] font-semibold shadow-xs"
           >
-            <Download className="w-3.5 h-3.5" /> Export Excel
+            <Download className="w-3 h-3" /> Export Excel
           </a>
         </div>
       </div>
 
-      {/* Side-by-Side Dual Table with Compact Row Height */}
+      {/* Side-by-Side Dual Table with Compact Row Height & Zero Scroll */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left border-collapse table-auto text-[11px]">
             <thead>
               <tr className="border-b border-slate-200 text-slate-800 font-bold divide-x divide-slate-200">
                 <th
                   rowSpan={2}
-                  className="px-2 py-1 text-center bg-slate-100 border-b border-r border-slate-200 w-8"
-                  title={isAllFilteredSelected ? "Deselect All" : "Select All Filtered Bills"}
+                  className="px-1.5 py-1 text-center bg-slate-100 border-b border-r border-slate-200 w-7"
+                  title={isAllPageSelected ? "Deselect Page" : "Select 15 Invoices on this Page"}
                 >
                   <input
                     type="checkbox"
-                    checked={isAllFilteredSelected}
+                    checked={isAllPageSelected}
                     onChange={toggleSelectAll}
                     className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                   />
                 </th>
-                <th colSpan={4} className="bg-blue-50/70 px-3 py-1.5 text-blue-900 uppercase tracking-wider text-[10px]">
+                <th colSpan={4} className="bg-blue-50/70 px-2 py-1 text-blue-900 uppercase tracking-wider text-[10px]">
                   Purchase Register (Books)
                 </th>
-                <th colSpan={4} className="bg-emerald-50/70 px-3 py-1.5 text-emerald-900 uppercase tracking-wider text-[10px]">
+                <th colSpan={4} className="bg-emerald-50/70 px-2 py-1 text-emerald-900 uppercase tracking-wider text-[10px]">
                   GSTR-2B Statement (Portal)
                 </th>
-                <th colSpan={4} className="bg-slate-100 px-3 py-1.5 text-slate-900 uppercase tracking-wider text-[10px]">
+                <th colSpan={4} className="bg-slate-100 px-2 py-1 text-slate-900 uppercase tracking-wider text-[10px]">
                   Variance & Audit Action
                 </th>
               </tr>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[10px]">
-                <th className="px-2.5 py-1.5">Supplier</th>
-                <th className="px-2 py-1.5">Invoice #</th>
-                <th className="px-2 py-1.5">Date</th>
-                <th className="px-2.5 py-1.5 text-right">Tax (₹)</th>
+                <th className="px-1.5 py-1">Supplier</th>
+                <th className="px-1 py-1">Invoice #</th>
+                <th className="px-1 py-1">Date</th>
+                <th className="px-1.5 py-1 text-right">Tax (₹)</th>
 
-                <th className="px-2.5 py-1.5 border-l border-slate-200">Supplier</th>
-                <th className="px-2 py-1.5">Invoice #</th>
-                <th className="px-2 py-1.5">Date</th>
-                <th className="px-2.5 py-1.5 text-right">Tax (₹)</th>
+                <th className="px-1.5 py-1 border-l border-slate-200">Supplier</th>
+                <th className="px-1 py-1">Invoice #</th>
+                <th className="px-1 py-1">Date</th>
+                <th className="px-1.5 py-1 text-right">Tax (₹)</th>
 
-                <th className="px-2 py-1.5 border-l border-slate-200">Status</th>
-                <th className="px-2.5 py-1.5 text-right">Tax Diff</th>
-                <th className="px-2.5 py-1.5">Remarks / Reason</th>
-                <th className="px-2 py-1.5 text-center">Action</th>
+                <th className="px-1 py-1 border-l border-slate-200">Status</th>
+                <th className="px-1.5 py-1 text-right">Diff (₹)</th>
+                <th className="px-1 py-1">Remarks</th>
+                <th className="px-1 py-1 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredItems.length === 0 ? (
+              {paginatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="px-4 py-8 text-center text-slate-400 text-xs">
-                    No records found matching current month or filters.
+                    No records found matching current filters.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                paginatedItems.map((item) => {
                   const isReversed =
                     item.matchStatus === "ITC_INELIGIBLE" ||
                     (item.remarks && item.remarks.toLowerCase().includes("itc reversed")) ||
@@ -733,7 +756,7 @@ export function BooksVs2BClient({
                       }`}
                     >
                       {/* Checkbox column */}
-                      <td className="px-2 py-1 text-center border-r border-slate-200">
+                      <td className="px-1.5 py-1 text-center border-r border-slate-200">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -743,56 +766,60 @@ export function BooksVs2BClient({
                       </td>
 
                       {/* Books Side */}
-                      <td className="px-2.5 py-1">
-                        <div className="font-semibold text-slate-900 max-w-[140px] truncate leading-tight text-[11px]">
+                      <td className="px-1.5 py-1">
+                        <div className="font-semibold text-slate-900 max-w-[110px] truncate leading-tight text-[10px]">
                           {item.booksSupplier || "-"}
                         </div>
-                        <div className="font-mono text-[9px] text-slate-500 leading-none mt-0.5">{item.booksGstin || "-"}</div>
+                        <div className="font-mono text-[9px] text-slate-500 leading-none mt-0.5 max-w-[110px] truncate">{item.booksGstin || "-"}</div>
                       </td>
-                      <td className="px-2 py-1 font-mono text-slate-700 text-[11px] whitespace-nowrap">{item.booksInvoiceNo || "-"}</td>
-                      <td className="px-2 py-1 text-slate-600 text-[10px] whitespace-nowrap">{formatDate(item.booksDate)}</td>
-                      <td className="px-2.5 py-1 text-right font-medium text-slate-900 text-[11px] whitespace-nowrap">
+                      <td className="px-1 py-1 font-mono text-slate-700 text-[10px] max-w-[85px] truncate" title={item.booksInvoiceNo || ""}>
+                        {item.booksInvoiceNo || "-"}
+                      </td>
+                      <td className="px-1 py-1 text-slate-600 text-[9px] whitespace-nowrap">{formatDate(item.booksDate)}</td>
+                      <td className="px-1.5 py-1 text-right font-medium text-slate-900 text-[10px] whitespace-nowrap">
                         {item.booksTaxable !== null && item.booksTaxable !== undefined
                           ? formatCurrency((item.booksIgst || 0) + (item.booksCgst || 0) + (item.booksSgst || 0))
                           : "-"}
                       </td>
 
                       {/* 2B Side */}
-                      <td className="px-2.5 py-1 border-l border-slate-200">
-                        <div className="font-semibold text-slate-900 max-w-[140px] truncate leading-tight text-[11px]">
+                      <td className="px-1.5 py-1 border-l border-slate-200">
+                        <div className="font-semibold text-slate-900 max-w-[110px] truncate leading-tight text-[10px]">
                           {item.stmtSupplier || "-"}
                         </div>
-                        <div className="font-mono text-[9px] text-slate-500 leading-none mt-0.5">{item.stmtGstin || "-"}</div>
+                        <div className="font-mono text-[9px] text-slate-500 leading-none mt-0.5 max-w-[110px] truncate">{item.stmtGstin || "-"}</div>
                       </td>
-                      <td className="px-2 py-1 font-mono text-slate-700 text-[11px] whitespace-nowrap">{item.stmtInvoiceNo || "-"}</td>
-                      <td className="px-2 py-1 text-slate-600 text-[10px] whitespace-nowrap">{formatDate(item.stmtDate)}</td>
-                      <td className="px-2.5 py-1 text-right font-medium text-slate-900 text-[11px] whitespace-nowrap">
+                      <td className="px-1 py-1 font-mono text-slate-700 text-[10px] max-w-[85px] truncate" title={item.stmtInvoiceNo || ""}>
+                        {item.stmtInvoiceNo || "-"}
+                      </td>
+                      <td className="px-1 py-1 text-slate-600 text-[9px] whitespace-nowrap">{formatDate(item.stmtDate)}</td>
+                      <td className="px-1.5 py-1 text-right font-medium text-slate-900 text-[10px] whitespace-nowrap">
                         {item.stmtTaxable !== null && item.stmtTaxable !== undefined
                           ? formatCurrency((item.stmtIgst || 0) + (item.stmtCgst || 0) + (item.stmtSgst || 0))
                           : "-"}
                       </td>
 
                       {/* Variance & Audit */}
-                      <td className="px-2 py-1 border-l border-slate-200 whitespace-nowrap">
+                      <td className="px-1 py-1 border-l border-slate-200 whitespace-nowrap">
                         {getStatusBadge(item.matchStatus, item)}
                       </td>
                       <td
-                        className={`px-2.5 py-1 text-right font-bold text-[11px] whitespace-nowrap ${
+                        className={`px-1.5 py-1 text-right font-bold text-[10px] whitespace-nowrap ${
                           Math.abs(item.diffTotal || 0) > 0.01 ? "text-red-600" : "text-emerald-600"
                         }`}
                       >
                         {formatCurrency(Math.abs(item.diffTotal || 0))}
                       </td>
-                      <td className="px-2.5 py-1 text-slate-600 max-w-[160px] truncate text-[10px]" title={item.actionRequired || item.remarks || ""}>
+                      <td className="px-1 py-1 text-slate-600 max-w-[110px] truncate text-[9px]" title={item.actionRequired || item.remarks || ""}>
                         {item.actionRequired || item.remarks || "-"}
                       </td>
-                      <td className="px-2 py-1 text-center whitespace-nowrap">
+                      <td className="px-1 py-1 text-center whitespace-nowrap">
                         <div className="inline-flex items-center gap-1">
                           {/* ITC Reverse / Restore Button */}
                           {isReversed ? (
                             <button
                               onClick={() => handleRestoreItc(item)}
-                              className="px-1.5 py-0.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded text-[10px] font-semibold border border-purple-200 cursor-pointer"
+                              className="px-1.5 py-0.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded text-[9px] font-semibold border border-purple-200 cursor-pointer"
                               title="Restore ITC as eligible"
                             >
                               Restore
@@ -800,10 +827,10 @@ export function BooksVs2BClient({
                           ) : (
                             <button
                               onClick={() => openReverseModal(item)}
-                              className="px-1.5 py-0.5 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded text-[10px] font-semibold border border-amber-200 cursor-pointer"
+                              className="px-1.5 py-0.5 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded text-[9px] font-semibold border border-amber-200 cursor-pointer"
                               title="Reverse ITC in Books / 3B"
                             >
-                              Reverse ITC
+                              Reverse
                             </button>
                           )}
 
@@ -816,7 +843,7 @@ export function BooksVs2BClient({
                                 setModalItem(item);
                                 setMatchReason("Verified tax invoice and confirmed genuine match");
                               }}
-                              className="px-1.5 py-0.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-semibold border border-blue-200 cursor-pointer"
+                              className="px-1.5 py-0.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[9px] font-semibold border border-blue-200 cursor-pointer"
                             >
                               Match
                             </button>
@@ -830,6 +857,42 @@ export function BooksVs2BClient({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar (15 items per page) */}
+        {filteredItems.length > 0 && (
+          <div className="bg-slate-50 px-3 py-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+            <div className="text-[11px] font-medium">
+              Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-bold text-slate-900">
+                {Math.min(startIndex + pageSize, filteredItems.length)}
+              </span>{" "}
+              of <span className="font-bold text-slate-900">{filteredItems.length}</span> invoices
+              (15 transactions per page)
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 rounded text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Previous
+              </button>
+
+              <span className="text-[11px] font-bold text-slate-800 px-2">
+                Page {safePage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 rounded text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Floating Bulk Action Bar */}
