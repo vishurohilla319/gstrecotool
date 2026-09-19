@@ -9,7 +9,7 @@ export interface ColumnMappingDefinition {
 }
 
 export const PURCHASE_BOOK_COLUMNS: ColumnMappingDefinition[] = [
-  { field: "gstin", label: "Supplier GSTIN", required: true, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier", "gstin/uin", "gstin / uin", "party gstin/uin", "gst no", "gst no.", "gst number", "gstin no", "gstin_uin", "gst", "party's gstin/uin", "party gstin no", "supplier gst no", "tin/gstin", "gstin no.", "gstin number", "party gst"] },
+  { field: "gstin", label: "Supplier GSTIN", required: false, aliases: ["gstin", "supplier gstin", "party gstin", "vendor gstin", "gstin of supplier", "gstin/uin", "gstin / uin", "party gstin/uin", "gst no", "gst no.", "gst number", "gstin no", "gstin_uin", "gst", "party's gstin/uin", "party gstin no", "supplier gst no", "tin/gstin", "gstin no.", "gstin number", "party gst"] },
   { field: "supplierName", label: "Supplier Name", required: true, aliases: ["supplier name", "trade name", "legal name", "party name", "vendor name", "supplier", "particulars", "party", "ledger name", "account name", "name of supplier", "name of party", "name of the supplier", "trade/legal name", "party's name", "party particulars", "party_name", "supplier_name", "account", "ledger"] },
   { field: "invoiceNumber", label: "Invoice Number", required: true, aliases: ["invoice number", "invoice no", "invoice no.", "inv no", "inv no.", "bill no", "bill no.", "bill number", "doc no", "doc no.", "document number", "vch no", "vch no.", "voucher no", "voucher no.", "ref no", "ref no.", "supplier invoice no", "reference no", "invoice number/document number", "inv. no.", "bill_no", "inv_no", "vch_no", "invoice details", "vch ref no", "ref. no.", "voucher number", "bill reference"] },
   { field: "invoiceDate", label: "Invoice Date", required: true, aliases: ["invoice date", "inv date", "bill date", "date", "document date", "vch date", "voucher date", "inv. date", "invoice dt", "doc date", "voucher dt", "inv_date", "bill_date", "vch_date", "dt", "bill dt"] },
@@ -546,26 +546,40 @@ export function validateRows(
       String(rawGstin ?? "").trim().toLowerCase().startsWith("total") ||
       String(rawInvNo ?? "").trim().toLowerCase().startsWith("total");
 
+    const parsedDate = parseDateInput(rawDate);
+
     const isTotalSummaryRow =
       hasTotalKeyword &&
-      (!rawInvNo || String(rawInvNo).trim() === "" || !rawGstin || String(rawGstin).trim() === "" || !isValidGstin(String(rawGstin)));
+      (!rawInvNo || String(rawInvNo).trim() === "" || !parsedDate);
 
     if (isTotalSummaryRow) {
       ignoredCount++;
       return;
     }
 
-    if (!rawGstin) {
-      rowErrors.push("Blank or missing Supplier GSTIN");
-    } else if (!isValidGstin(String(rawGstin))) {
-      rowErrors.push(`Invalid GSTIN format: '${rawGstin}'`);
+    let normGstin = "";
+    if (fileType === "PURCHASE_BOOKS") {
+      const cleanGstin = rawGstin ? String(rawGstin).trim().toUpperCase() : "";
+      const isPlaceholder = !cleanGstin || ["URD", "UNREGISTERED", "N/A", "NA", "-", "--", "NONE", "CONSUMER", "NOT APPLICABLE", "NULL"].includes(cleanGstin);
+      if (isPlaceholder) {
+        normGstin = "URD";
+      } else {
+        normGstin = cleanGstin;
+      }
+    } else {
+      if (!rawGstin) {
+        rowErrors.push("Blank or missing Supplier GSTIN");
+      } else if (!isValidGstin(String(rawGstin))) {
+        rowErrors.push(`Invalid GSTIN format: '${rawGstin}'`);
+      } else {
+        normGstin = String(rawGstin).trim().toUpperCase();
+      }
     }
 
     if (!rawInvNo || String(rawInvNo).trim() === "") {
       rowErrors.push("Invoice number cannot be blank");
     }
 
-    const parsedDate = parseDateInput(rawDate);
     if (!parsedDate) {
       rowErrors.push(`Invalid or unparseable invoice date: '${rawDate}'`);
     }
@@ -575,12 +589,15 @@ export function validateRows(
       rowErrors.push("Invalid Taxable Value");
     }
 
-    const normGstin = rawGstin ? String(rawGstin).trim().toUpperCase() : "";
     const normInvNo = normalizeInvoiceNumber(rawInvNo);
-    const key = `${normGstin}_${normInvNo}_${parsedDate ? parsedDate.getFullYear() : "YEAR"}`;
+    const supplierKey = (normGstin && normGstin !== "URD")
+      ? normGstin
+      : (normalizeInvoiceNumber(getVal("supplierName")) || "URD");
+    const key = `${supplierKey}_${normInvNo}_${parsedDate ? parsedDate.getFullYear() : "YEAR"}`;
 
     if (seenUniqueKeys.has(key)) {
-      rowErrors.push(`Duplicate row in import sheet for Invoice: ${rawInvNo} and GSTIN: ${normGstin}`);
+      const partyDesc = normGstin && normGstin !== "URD" ? `GSTIN: ${normGstin}` : `Supplier: ${getVal("supplierName") || "URD"}`;
+      rowErrors.push(`Duplicate row in import sheet for Invoice: ${rawInvNo} and ${partyDesc}`);
     } else {
       seenUniqueKeys.add(key);
     }
@@ -614,7 +631,7 @@ export function validateRows(
       const isItcEligible = !(itcEligVal === "N" || itcEligVal === "NO" || itcEligVal === "FALSE" || itcEligVal === "0" || itcEligVal === "INELIGIBLE");
 
       validRows.push({
-        gstin: normGstin,
+        gstin: normGstin || (fileType === "PURCHASE_BOOKS" ? "URD" : ""),
         supplierName: String(getVal("supplierName") || "Unknown Supplier").trim(),
         invoiceNumber: String(rawInvNo).trim(),
         normalizedInvoiceNumber: normInvNo,
@@ -680,6 +697,21 @@ export function generateExcelTemplate(fileType: string): Uint8Array {
         "Cess": 0,
         "Invoice Value": 59000,
         "Place of Supply": "07-Delhi",
+        "RCM": "N",
+        "ITC Eligible": "Y",
+      },
+      {
+        "Supplier GSTIN": "URD",
+        "Supplier Name": "Metro Stationery Mart (URD)",
+        "Invoice Number": "MSM-102",
+        "Invoice Date": "25-04-2026",
+        "Taxable Value": 4500,
+        "IGST": 0,
+        "CGST": 0,
+        "SGST": 0,
+        "Cess": 0,
+        "Invoice Value": 4500,
+        "Place of Supply": "27-Maharashtra",
         "RCM": "N",
         "ITC Eligible": "Y",
       },

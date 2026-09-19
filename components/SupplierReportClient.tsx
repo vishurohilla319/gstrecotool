@@ -11,8 +11,8 @@ export function SupplierReportClient({ suppliers }: { suppliers: any[] }) {
   const filtered = suppliers.filter((s) => {
     return (
       !search ||
-      s.gstin.toLowerCase().includes(search.toLowerCase()) ||
-      s.name.toLowerCase().includes(search.toLowerCase())
+      (s.gstin && s.gstin.toLowerCase().includes(search.toLowerCase())) ||
+      (s.name && s.name.toLowerCase().includes(search.toLowerCase()))
     );
   });
 
@@ -67,9 +67,17 @@ export function SupplierReportClient({ suppliers }: { suppliers: any[] }) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((s) => (
-                  <tr key={s.gstin} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{s.gstin}</td>
+                filtered.map((s, idx) => (
+                  <tr key={`${s.gstin}_${s.name}_${idx}`} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900">
+                      {s.gstin && s.gstin !== "URD" ? (
+                        s.gstin
+                      ) : (
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                          URD / No GSTIN
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{s.name}</td>
                     <td className="px-3 py-3 text-center font-semibold text-blue-700">{s.booksCount}</td>
                     <td className="px-3 py-3 text-center font-semibold text-emerald-700">{s.stmtCount}</td>

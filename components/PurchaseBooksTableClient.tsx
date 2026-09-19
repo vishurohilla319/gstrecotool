@@ -26,9 +26,9 @@ export function PurchaseBooksTableClient({ initialRecords }: { initialRecords: a
     return records.filter((r) => {
       const matchesSearch =
         !search ||
-        r.gstin.toLowerCase().includes(search.toLowerCase()) ||
-        r.supplierName.toLowerCase().includes(search.toLowerCase()) ||
-        r.invoiceNumber.toLowerCase().includes(search.toLowerCase());
+        (r.gstin && r.gstin.toLowerCase().includes(search.toLowerCase())) ||
+        (r.supplierName && r.supplierName.toLowerCase().includes(search.toLowerCase())) ||
+        (r.invoiceNumber && r.invoiceNumber.toLowerCase().includes(search.toLowerCase()));
 
       const matchesMonth = selectedMonth === "ALL" || r.month === selectedMonth;
 
@@ -194,7 +194,13 @@ export function PurchaseBooksTableClient({ initialRecords }: { initialRecords: a
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-3 py-2.5 font-mono text-[11px] font-semibold text-slate-800">
-                      {r.gstin}
+                      {r.gstin && r.gstin !== "URD" ? (
+                        r.gstin
+                      ) : (
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                          URD / No GSTIN
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 font-medium text-slate-900 max-w-xs truncate">
                       {r.supplierName}

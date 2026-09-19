@@ -21,9 +21,10 @@ export default async function SupplierReportPage() {
 
   // From books
   for (const b of books) {
-    if (!supplierMap.has(b.gstin)) {
-      supplierMap.set(b.gstin, {
-        gstin: b.gstin,
+    const key = b.gstin && b.gstin !== "URD" ? b.gstin : `URD_${b.supplierName || "Unknown"}`;
+    if (!supplierMap.has(key)) {
+      supplierMap.set(key, {
+        gstin: b.gstin && b.gstin !== "URD" ? b.gstin : "URD",
         name: b.supplierName,
         booksCount: 0,
         stmtCount: 0,
@@ -37,7 +38,7 @@ export default async function SupplierReportPage() {
         invoices: [],
       });
     }
-    const sup = supplierMap.get(b.gstin)!;
+    const sup = supplierMap.get(key)!;
     sup.booksCount++;
     sup.booksTax += (b.igst || 0) + (b.cgst || 0) + (b.sgst || 0);
   }

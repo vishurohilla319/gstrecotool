@@ -124,10 +124,19 @@ export function reconcileBooksVs2B(
   const matched2BIds = new Set<string>();
   const matchedBookIds = new Set<string>();
 
+  // Helper to compute unique books key per supplier & invoice
+  const getBookItemKey = (b: any) => {
+    const normGstin = normalizeGstin(b.gstin);
+    const party = (!normGstin || normGstin === "URD")
+      ? (normalizeInvoiceNumber(b.supplierName) || "URD")
+      : normGstin;
+    return `${party}_${normalizeInvoiceNumber(b.invoiceNumber)}_${b.fy}`;
+  };
+
   // Check for duplicate invoices in Books
   const booksKeyMap = new Map<string, any[]>();
   for (const b of books) {
-    const key = `${normalizeGstin(b.gstin)}_${normalizeInvoiceNumber(b.invoiceNumber)}_${b.fy}`;
+    const key = getBookItemKey(b);
     if (!booksKeyMap.has(key)) booksKeyMap.set(key, []);
     booksKeyMap.get(key)!.push(b);
   }
@@ -144,10 +153,10 @@ export function reconcileBooksVs2B(
   for (const b of books) {
     const normGstin = normalizeGstin(b.gstin);
     const normInv = normalizeInvoiceNumber(b.invoiceNumber);
-    const key = `${normGstin}_${normInv}_${b.fy}`;
+    const bookKey = getBookItemKey(b);
 
     // Duplicate in books
-    if (booksKeyMap.get(key)!.length > 1 && !matchedBookIds.has(b.id)) {
+    if (booksKeyMap.get(bookKey)!.length > 1 && !matchedBookIds.has(b.id)) {
       items.push({
         matchStatus: "DUPLICATE",
         booksRecordId: b.id,
@@ -167,13 +176,18 @@ export function reconcileBooksVs2B(
         diffTotal: (b.igst || 0) + (b.cgst || 0) + (b.sgst || 0),
         priority: "HIGH",
         actionRequired: "Investigate duplicate entry in Purchase Register",
-        remarks: "Duplicate invoice found in Books for same GSTIN, Invoice Number and FY",
+        remarks: (!normGstin || normGstin === "URD")
+          ? "Duplicate invoice found in Books for same Supplier Name, Invoice Number and FY"
+          : "Duplicate invoice found in Books for same GSTIN, Invoice Number and FY",
       });
       matchedBookIds.add(b.id);
       continue;
     }
 
-    const matching2bCandidates = stmt2BKeyMap.get(key)?.filter((s) => !matched2BIds.has(s.id)) || [];
+    const matchingKey = `${normGstin}_${normInv}_${b.fy}`;
+    const matching2bCandidates = (normGstin && normGstin !== "URD")
+      ? (stmt2BKeyMap.get(matchingKey)?.filter((s) => !matched2BIds.has(s.id)) || [])
+      : [];
 
     if (matching2bCandidates.length > 0) {
       // Found candidate in 2B
@@ -373,14 +387,17 @@ export function reconcileBooksVs2B(
     const normGstin = normalizeGstin(b.gstin);
     const normInv = normalizeInvoiceNumber(b.invoiceNumber);
 
-    // Look for same GSTIN + similar invoice number (similarity >= 0.8) or exact taxable amount
+    // Look for same GSTIN + similar invoice number, or for Books without GSTIN matching 2B by invoice # and amount/name
     let bestMatch: any = null;
     let highestSim = 0;
+    let matchReason = "";
 
     for (const s of unmatched2B) {
       if (matched2BIds.has(s.id)) continue;
-      if (normalizeGstin(s.gstin) === normGstin) {
-        const sNormInv = normalizeInvoiceNumber(s.invoiceNumber);
+      const sNormGstin = normalizeGstin(s.gstin);
+      const sNormInv = normalizeInvoiceNumber(s.invoiceNumber);
+
+      if (normGstin && normGstin !== "URD" && sNormGstin === normGstin) {
         const sim = stringSimilarity(normInv, sNormInv);
         const amountMatch = Math.abs((b.taxableValue || 0) - (s.taxableValue || 0)) <= tolerances.taxableTolerance;
 
@@ -388,6 +405,22 @@ export function reconcileBooksVs2B(
           if (sim > highestSim) {
             highestSim = sim;
             bestMatch = s;
+            matchReason = `Probable match (Invoice similarity: ${Math.round(sim * 100)}%)`;
+          }
+        }
+      } else if ((!normGstin || normGstin === "URD") && normInv && sNormInv && normInv === sNormInv && normInv.length >= 2) {
+        const amountMatch = Math.abs((b.taxableValue || 0) - (s.taxableValue || 0)) <= tolerances.taxableTolerance;
+        const nameSim = stringSimilarity(
+          String(b.supplierName || "").toLowerCase().trim(),
+          String(s.supplierName || "").toLowerCase().trim()
+        );
+
+        if (amountMatch || nameSim >= 0.5) {
+          const simScore = amountMatch && nameSim >= 0.5 ? 0.95 : (amountMatch ? 0.85 : 0.7);
+          if (simScore > highestSim) {
+            highestSim = simScore;
+            bestMatch = s;
+            matchReason = `Invoice # matched without Books GSTIN (2B Supplier: ${s.supplierName} - ${s.gstin})`;
           }
         }
       }
@@ -431,8 +464,10 @@ export function reconcileBooksVs2B(
         diffSgst,
         diffTotal: diffTotalTax,
         priority: "MEDIUM",
-        actionRequired: "Review potential invoice number mismatch and confirm match",
-        remarks: `Probable match (Invoice similarity: ${Math.round(highestSim * 100)}%)`,
+        actionRequired: (!normGstin || normGstin === "URD")
+          ? `Verify supplier (${bestMatch.supplierName} - ${bestMatch.gstin}) and confirm match`
+          : "Review potential invoice number mismatch and confirm match",
+        remarks: matchReason || `Probable match (Invoice similarity: ${Math.round(highestSim * 100)}%)`,
       });
     }
   }
@@ -620,34 +655,117 @@ export function reconcile2Avs2B(
 }
 
 /**
+ * Normalize month string to standard month name (e.g. "June 2026", "JUN-26", "06" -> "June")
+ */
+export function normalizeMonth(monthStr?: string | null): string {
+  if (!monthStr) return "Unknown";
+  const str = String(monthStr).trim();
+  const lower = str.toLowerCase();
+
+  const months = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december"
+  ];
+  const shortMonths = [
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec"
+  ];
+  const titleMonths = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  for (let i = 0; i < months.length; i++) {
+    if (lower.includes(months[i]) || lower.includes(shortMonths[i])) {
+      return titleMonths[i];
+    }
+  }
+
+  const num = parseInt(str, 10);
+  if (!isNaN(num) && num >= 1 && num <= 12) {
+    return titleMonths[num - 1];
+  }
+
+  return str;
+}
+
+const FY_MONTH_ORDER = [
+  "April", "May", "June", "July", "August", "September",
+  "October", "November", "December", "January", "February", "March"
+];
+
+/**
  * Reconcile GSTR-2B vs GSTR-3B (Monthly)
  */
 export function reconcile2Bvs3B(gstr2b: any[], gstr3b: any[]) {
-  // Aggregate 2B by month
-  const monthly2b = new Map<string, { igst: number; cgst: number; sgst: number; cess: number; total: number }>();
+  // Aggregate 2B by normalized month
+  const monthly2b = new Map<string, { igst: number; cgst: number; sgst: number; cess: number; total: number; displayMonth: string }>();
   
   for (const b of gstr2b) {
-    const m = b.month || "Unknown";
-    if (!monthly2b.has(m)) {
-      monthly2b.set(m, { igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0 });
+    const rawM = b.month || "Unknown";
+    const normM = normalizeMonth(rawM);
+    if (!monthly2b.has(normM)) {
+      monthly2b.set(normM, {
+        igst: 0,
+        cgst: 0,
+        sgst: 0,
+        cess: 0,
+        total: 0,
+        displayMonth: rawM.includes("20") ? rawM : normM,
+      });
     }
     // Only add if ITC is eligible
     if (b.itcEligible !== false && b.itcAvailability !== "N") {
-      const cur = monthly2b.get(m)!;
+      const cur = monthly2b.get(normM)!;
       cur.igst += b.igst || 0;
       cur.cgst += b.cgst || 0;
       cur.sgst += b.sgst || 0;
       cur.cess += b.cess || 0;
       cur.total += (b.igst || 0) + (b.cgst || 0) + (b.sgst || 0) + (b.cess || 0);
+      if (rawM.includes("20") && !cur.displayMonth.includes("20")) {
+        cur.displayMonth = rawM;
+      }
     }
   }
 
-  // All distinct months
-  const allMonths = Array.from(new Set([...Array.from(monthly2b.keys()), ...gstr3b.map((r) => r.month)])).filter(Boolean);
+  // Aggregate 3B by normalized month
+  const monthly3b = new Map<string, any>();
+  for (const r of gstr3b) {
+    const normM = normalizeMonth(r.month);
+    const existing = monthly3b.get(normM);
+    if (!existing) {
+      monthly3b.set(normM, { ...r, rawMonth: r.month });
+    } else {
+      existing.igstClaimed = (existing.igstClaimed || 0) + (r.igstClaimed || 0);
+      existing.cgstClaimed = (existing.cgstClaimed || 0) + (r.cgstClaimed || 0);
+      existing.sgstClaimed = (existing.sgstClaimed || 0) + (r.sgstClaimed || 0);
+      existing.cessClaimed = (existing.cessClaimed || 0) + (r.cessClaimed || 0);
+      existing.totalClaimed = (existing.totalClaimed || 0) + (r.totalClaimed || 0);
+      existing.itcReversed = (existing.itcReversed || 0) + (r.itcReversed || 0);
+      existing.netItc = (existing.netItc || 0) + (r.netItc || 0);
+    }
+  }
 
-  const results = allMonths.map((m) => {
-    const bData = monthly2b.get(m) || { igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0 };
-    const r3b = gstr3b.find((r) => r.month === m);
+  // All distinct normalized months
+  const allNormMonths = Array.from(
+    new Set([...Array.from(monthly2b.keys()), ...Array.from(monthly3b.keys())])
+  ).filter(Boolean);
+
+  // Sort by FY order
+  allNormMonths.sort((a, b) => {
+    const idxA = FY_MONTH_ORDER.indexOf(a);
+    const idxB = FY_MONTH_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  const results = allNormMonths.map((normM) => {
+    const bData = monthly2b.get(normM) || { igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0, displayMonth: normM };
+    const r3b = monthly3b.get(normM);
+
+    const displayMonth = bData.displayMonth || r3b?.rawMonth || normM;
 
     const igstClaimed = r3b?.igstClaimed || 0;
     const cgstClaimed = r3b?.cgstClaimed || 0;
@@ -658,8 +776,8 @@ export function reconcile2Bvs3B(gstr2b: any[], gstr3b: any[]) {
     const netItc = r3b?.netItc || (totalClaimed - itcReversed);
 
     const diff = Math.round((netItc - bData.total) * 100) / 100;
-    const unclaimedItc = diff < 0 ? Math.abs(diff) : 0;
-    const potentialExcess = diff > 0 ? diff : 0;
+    const unclaimedItc = diff < -1 ? Math.abs(diff) : 0;
+    const potentialExcess = diff > 1 ? diff : 0;
 
     let remarks = "Reconciled";
     if (potentialExcess > 1) {
@@ -669,7 +787,8 @@ export function reconcile2Bvs3B(gstr2b: any[], gstr3b: any[]) {
     }
 
     return {
-      month: m,
+      month: displayMonth,
+      normMonth: normM,
       bIgst: Math.round(bData.igst * 100) / 100,
       bCgst: Math.round(bData.cgst * 100) / 100,
       bSgst: Math.round(bData.sgst * 100) / 100,
