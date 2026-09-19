@@ -272,8 +272,93 @@ export function smartExtractSheetData(
     rows.push(rowObj);
   }
 
-  // Auto map columns
+  // Auto map columns by header name
   const autoMapping = autoMapColumns(headers, definitions);
+
+  // Deep Content Inspection: If any required column is still missing, inspect row values!
+  if (fileType !== "GSTR_3B" && rows.length > 0) {
+    const sampleRows = rows.slice(0, 15);
+    const mappedHeaders = new Set(Object.values(autoMapping));
+
+    // 1. Detect GSTIN by 15-character GST pattern in row values
+    if (!autoMapping["gstin"]) {
+      for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+        const matches = sampleRows.filter((r) => isValidGstin(String(r[h] ?? "")));
+        if (matches.length >= Math.min(1, sampleRows.length)) {
+          autoMapping["gstin"] = h;
+          mappedHeaders.add(h);
+          break;
+        }
+      }
+    }
+
+    // 2. Detect Invoice Date by parseable date values
+    if (!autoMapping["invoiceDate"]) {
+      for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+        const matches = sampleRows.filter((r) => parseDateInput(r[h]) !== null);
+        if (matches.length >= Math.max(1, Math.floor(sampleRows.length * 0.4))) {
+          autoMapping["invoiceDate"] = h;
+          mappedHeaders.add(h);
+          break;
+        }
+      }
+    }
+
+    // 3. Detect Taxable Value by numeric amount values
+    if (!autoMapping["taxableValue"]) {
+      for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+        const hasNumbers = sampleRows.some((r) => {
+          const v = Number(r[h]);
+          return !isNaN(v) && v > 0;
+        });
+        const headerHint = /tax|taxable|assessable|basic|amt|amount|value/i.test(h);
+        if (hasNumbers && (headerHint || headers.filter((x) => !mappedHeaders.has(x)).length <= 3)) {
+          autoMapping["taxableValue"] = h;
+          mappedHeaders.add(h);
+          break;
+        }
+      }
+    }
+
+    // 4. Detect Invoice Number
+    if (!autoMapping["invoiceNumber"]) {
+      for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+        const hasValues = sampleRows.some((r) => String(r[h] ?? "").trim().length > 0);
+        const headerHint = /inv|bill|doc|vch|no|num|ref|voucher/i.test(h);
+        if (hasValues && headerHint) {
+          autoMapping["invoiceNumber"] = h;
+          mappedHeaders.add(h);
+          break;
+        }
+      }
+      // If still not mapped, take the first available non-empty column
+      if (!autoMapping["invoiceNumber"]) {
+        for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+          if (sampleRows.some((r) => String(r[h] ?? "").trim().length > 0)) {
+            autoMapping["invoiceNumber"] = h;
+            mappedHeaders.add(h);
+            break;
+          }
+        }
+      }
+    }
+
+    // 5. Detect Supplier / Party Name
+    if (!autoMapping["supplierName"]) {
+      for (const h of headers.filter((x) => !mappedHeaders.has(x))) {
+        const headerHint = /party|supplier|name|particulars|vendor|ledger|account/i.test(h);
+        const isText = sampleRows.some((r) => {
+          const v = String(r[h] ?? "").trim();
+          return v.length > 2 && isNaN(Number(v));
+        });
+        if (headerHint || isText) {
+          autoMapping["supplierName"] = h;
+          mappedHeaders.add(h);
+          break;
+        }
+      }
+    }
+  }
 
   // Check if all required fields are mapped
   const requiredDefs = definitions.filter((d) => d.required);
